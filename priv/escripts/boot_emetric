@@ -1,0 +1,39 @@
+#!/usr/bin/env escript
+%% -*- mode:erlang;tab-width:4;erlang-indent-level:4;indent-tabs-mode:nil -*-
+
+main(Args) ->
+
+    %% from rebar bootstrap
+    Files = load_files("*","ebin"),
+
+    case zip:create("mem",Files, [memory]) of
+        {ok, {"mem", ZipBin}} ->
+            Script = <<"#!/usr/bin/env escript\n%%! -noshell -noinput\n",ZipBin/binary>>,
+            case file:write_file("emetric",Script) of
+                ok ->
+                    ok;
+                {error, WriteError} ->
+                    io:format("Failed to write emetric script: ~p\n",[WriteError]),
+                    halt(1)
+            end;
+        {error, ZipError} ->
+            io:format("Failed to construct emetric script archive: ~p\n",[ZipError]),
+            halt(1)            
+    end,
+
+    case os:type() of
+        {unix,_} ->
+            [] = os:cmd("chmod u+x emetric"),
+            ok;
+        _  ->
+            ok
+    end.
+
+
+%% from rebar bootstrap
+load_files(Wildcard, Dir) ->
+    [read_file(Filename,Dir) || Filename <- filelib:wildcard(Wildcard,Dir)].
+
+read_file(Filename, Dir) ->
+    {ok, Bin} = file:read_file(filename:join(Dir, Filename)),
+    {Filename, Bin}.

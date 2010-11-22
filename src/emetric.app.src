@@ -1,0 +1,12 @@
+{application, emetric,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { emetric_app, []}},
+  {env, []}
+ ]}.
