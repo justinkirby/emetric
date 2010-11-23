@@ -1,12 +1,27 @@
 {application, emetric,
  [
-  {description, ""},
+  {description, "Erlang Metrics Logger"},
   {vsn, "1"},
-  {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+		  sasl
                  ]},
-  {mod, { emetric_app, []}},
-  {env, []}
+  {modules, [
+	     emetric,
+	     emetric_core,
+	     emetric_config,
+	     emetric_cmd_connect,
+	     emetric_cmd_inject,
+	     getopt
+	    ] },
+  {registered, []},
+  {env, [
+	 {commands, [
+		     connect,
+		     inject
+		    ]},
+	 {mods_prefix, emetric_mod_}
+	 
+	]}
  ]}.

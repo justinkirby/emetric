@@ -6,6 +6,7 @@ main(Args) ->
     %% from rebar bootstrap
     Files = load_files("*","ebin"),
 
+
     case zip:create("mem",Files, [memory]) of
         {ok, {"mem", ZipBin}} ->
             Script = <<"#!/usr/bin/env escript\n%%! -noshell -noinput\n",ZipBin/binary>>,
