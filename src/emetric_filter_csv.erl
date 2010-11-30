@@ -1,12 +1,13 @@
--module(emetric_out_csv).
+-module(emetric_filter_csv).
 
 
--export([header/1,
-	 row/1,
-	 iso_8601_fmt/1
+-export([type/0,
+	 header/1,
+	 row/1
 	 ]).
 
-
+type() -> "csv".
+    
 header(Tick) ->
     string:join(lists:reverse(header(Tick,[])),",").
 
@@ -48,13 +49,16 @@ row_stat({Name,[{Key,Val}|Rest]},Acc) ->
     row_stat([{Key,Val}|Rest],Acc);
 row_stat([{Name,Val}|Rest],Acc) ->
     row_stat(Rest,row_stat({Name,Val},Acc));
+row_stat({now,Val},Acc) ->
+    Time = calendar:now_to_universal_time(Val),
+    NVal = lists:flatten(io_lib:format("~s",[emetric_util:iso_8601_fmt(Time)])),
+    [NVal|Acc];
 row_stat({Key,Val},Acc) ->
     NVal = lists:flatten(io_lib:format("~p",[Val])),
     [NVal|Acc].
     
+	
+    
 
 
 
-iso_8601_fmt({{Y,M,D},{H,Mi,S}}) ->
-    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B",
-		  [Y, M, D, H, Mi, S])).

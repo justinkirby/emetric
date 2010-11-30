@@ -15,6 +15,8 @@ set_global(gather, Value) ->
     set_module_list(gather,Value);
 set_global(scatter,Value) ->
     set_module_list(scatter,Value);
+set_global(filter,Value) ->
+    set_module_list(filter,Value);
 set_global(mods,Value) ->
     Mods = build_module_list("",Value),
     application:set_env(emetric,mods,Mods);
@@ -36,7 +38,7 @@ get_global(Key) ->
     get_global(Key,undefined).
 
 get_modules() ->
-    Keys = [base_mods,mods,gather,scatter],
+    Keys = [base_mods,mods,gather,scatter,filter],
     get_modules(Keys,[]).
 
 get_modules([],Acc) -> Acc;

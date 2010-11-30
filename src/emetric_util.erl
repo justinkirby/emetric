@@ -5,7 +5,9 @@
 	 mod_has_fun/2,
 	 mod_has_deps/1,
 	 rpc_ok_pid/6,
-	 rpc_ok/6
+	 rpc_ok/6,
+	 iso_8601_fmt/1,
+	 datetime_stamp/1
 	 ]).
 
 
@@ -48,3 +50,11 @@ rpc_ok(Node,Mod,Fun,Arg,OnError,OnOk) ->
 		    OnError(Error)
      	    end
      end.
+
+
+iso_8601_fmt({{Y,M,D},{H,Mi,S}}) ->
+    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B",
+				[Y, M, D, H, Mi, S])).
+datetime_stamp({{Y,M,D},{H,Mi,S}}) ->
+    lists:flatten(io_lib:format("~4.10.0B~2.10.0B~2.10.0B~2.10.0B~2.10.0B~2.10.0B",
+				[Y, M, D, H, Mi, S])).

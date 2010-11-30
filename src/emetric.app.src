@@ -20,6 +20,7 @@
 	     emetric_cmd_info,
 	     emetric_stat_sys,
 	     emetric_stat_ejd,
+	     emetric_filter_csv,
 	     getopt
 	    ] },
   {registered, []},
@@ -33,6 +34,7 @@
 	 {command_prefix, "emetric_cmd_"},
 	 {gather_prefix, "emetric_stats_"},
 	 {scatter_prefix, "emetric_log_"},
+	 {filter_prefix, "emetric_filter_"},
 	 %% list of modules to start for the gather per tick. This
 	 %% will most likely be emetric_stats_*
 	 {gather, [
@@ -41,10 +43,13 @@
 	 %% will most likely be emetric_log_*
 	 {scatter, [
 		   ]},
+	 {filter, [
+		  ]},
 	 {base_mods, [emetric_appsrv,
 		      emetric_sup,
 		      emetric_ticker,
-		      emetric_hooks
+		      emetric_hooks,
+		      emetric_util
 		      ]},
 	 {mods,[]}
 	 
