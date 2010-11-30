@@ -25,7 +25,10 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {file = 0}).
+-record(state, {file = 0,
+		header=false, %% whether we have recorded the header to the file
+		output=emetric_out_csv
+	       }).
 
 %%%===================================================================
 %%% API
