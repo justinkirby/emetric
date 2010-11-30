@@ -20,6 +20,7 @@
 	     emetric_cmd_info,
 	     emetric_stat_sys,
 	     emetric_stat_ejd,
+	     emetric_stat_mnesia,
 	     emetric_filter_csv,
 	     getopt
 	    ] },
