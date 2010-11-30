@@ -45,13 +45,10 @@ row([{Type,Stats}|Tick],Acc) ->
 
 row_stat([],Acc) -> Acc;
 row_stat({Name,[{Key,Val}|Rest]},Acc) ->
-    io:format("SK: ~p ~p|~p~n",[Name,{Key,Val},Rest]),
     row_stat([{Key,Val}|Rest],Acc);
 row_stat([{Name,Val}|Rest],Acc) ->
-    io:format("NK: ~p|~p~n",[{Name,Val},Rest]),    
     row_stat(Rest,row_stat({Name,Val},Acc));
 row_stat({Key,Val},Acc) ->
-    io:format("KV: {~p,~p}~n",[Key,Val]),
     NVal = lists:flatten(io_lib:format("~p",[Val])),
     [NVal|Acc].
     
