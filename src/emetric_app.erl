@@ -9,8 +9,8 @@
 %% Application callbacks
 %% ===================================================================
 
-start(_StartType, _StartArgs) ->
-    emetric_sup:start_link().
+start(_StartType, StartArgs) ->
+    emetric_sup:start_link(StartArgs).
 
 stop(_State) ->
     ok.

@@ -31,8 +31,9 @@ run(Args) ->
     %% start logger when we have it
 
     application:start(emetric),
+    CmdPre = emetric_config:get_global(command_prefix),
 
-    CommandAtoms = [list_to_atom("emetric_cmd_"++C) || C <- Commands],
+    CommandAtoms = [list_to_atom(CmdPre++C) || C <- Commands],
 
     process_commands(CommandAtoms),
 
@@ -137,7 +138,7 @@ commands_usage() ->
 				       M:command_help()				       
 				  end, emetric_config:get_global(commands)),
     lists:foreach(fun({Cmd,Args,Desc}) ->
-			  io:format("  ~-15.. s~-20...s~s~n~n",[Cmd,Args,Desc])
+			  io:format("  ~-15.. s~s~n  ~s~n~n",[Cmd,Args,Desc])
 		  end,CommandModules),
     ok.
 			  

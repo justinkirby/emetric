@@ -6,49 +6,33 @@
 %%% @end
 %%% Created : 26 Nov 2010 by  <>
 %%%-------------------------------------------------------------------
--module(emetric_ticker).
+-module(emetric_appsrv).
 
 -behaviour(gen_server).
 -behaviour(emetric_loadable).
 
--include("emetric.hrl").
 %% API
--export([start_link/0,
-	 start_link/1,
-	 deps/0,
-	 sup/0,
-	 tick/0,
-	 scatter/1
-	]).
+-export([start/1,start_link/0,stop/0,deps/0,sup/0,run/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
--define(TICK,2000).
 
--record(state, {tick = ?TICK,timer=0,tick_count=0}).
+-record(state, {env,sup}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-deps() -> [emetric_hooks].
-sup() -> ?CHILD(?MODULE,worker).
-
-tick() ->
-    gen_server:cast(?MODULE, {tick}).
-
-scatter(Ticks) ->
-    gen_server:cast(?MODULE, {scatter, Ticks}).
-%%    erlang:start_timer(tick_sz(?TICK,0),self(),{tick}).
-
-%%got this from eper prf.erl:44
-%% tick_sz(Tick,Offset) ->
-%%     {_,Sec,Usec} = now(),
-%%     Skew = Tick div 4,
-%%     Tick + Skew-((round(Sec*1000+Usec/1000)-Offset+Skew) rem Tick).
- 
+deps() -> [].
+sup() -> [].
+run(Specs) ->
+    gen_server:call(?SERVER,{start,Specs}).
+start(Env) ->
+    gen_server:start({local,?SERVER}, ?MODULE, [Env],[]).
+stop() ->
+    gen_server:call(?SERVER, stop).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -58,9 +42,6 @@ scatter(Ticks) ->
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-start_link(Tick) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Tick], []).
-
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -77,12 +58,8 @@ start_link(Tick) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    {ok, Tref} = start_timer(?TICK),
-    {ok, #state{timer=Tref}};
-init([Tick]) ->
-    {ok, Tref} = start_timer(Tick),
-    {ok, #state{tick=Tick,timer=Tref}}.
+init([Env]) ->
+    {ok, #state{env = Env}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -98,6 +75,11 @@ init([Tick]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({start,Specs}, _From, State) ->
+    {ok, Sup } = emetric_sup:start_link(Specs),
+    {reply, ok, State#state{sup=Sup}};
+handle_call(stop, _From, State) ->
+    {stop,normal,State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -112,15 +94,6 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({tick}, State) ->
-    Cnt = State#state.tick_count,
-    Ticks = emetric_hooks:run_fold(gather_hooks,[],Cnt),
-    emetric_ticker:scatter(Ticks),
-    {noreply,State#state{tick_count = Cnt+1}};
-handle_cast({scatter,Ticks}, State) ->
-    emetric_hooks:run(scatter_hooks,Ticks),
-    {noreply,State};
-    
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -165,5 +138,3 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-start_timer(Tick) ->
-    timer:apply_interval(Tick,emetric_ticker,tick,[]).

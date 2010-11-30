@@ -4,9 +4,9 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 26 Nov 2010 by  <>
+%%% Created : 23 Nov 2010 by  <>
 %%%-------------------------------------------------------------------
--module(emetric_ticker).
+-module(emetric_hooks).
 
 -behaviour(gen_server).
 -behaviour(emetric_loadable).
@@ -14,11 +14,12 @@
 -include("emetric.hrl").
 %% API
 -export([start_link/0,
-	 start_link/1,
 	 deps/0,
 	 sup/0,
-	 tick/0,
-	 scatter/1
+	 add/3,
+	 delete/3,
+	 run/2,
+	 run_fold/3
 	]).
 
 %% gen_server callbacks
@@ -26,29 +27,35 @@
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
--define(TICK,2000).
 
--record(state, {tick = ?TICK,timer=0,tick_count=0}).
+-record(state, {hooks=[]
+	       }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-deps() -> [emetric_hooks].
+deps() -> [].
 sup() -> ?CHILD(?MODULE,worker).
+    
 
-tick() ->
-    gen_server:cast(?MODULE, {tick}).
+%%--------------------------------------------------------------------
+%% @doc Adds a function to the hook. Currently on gather_hooks and
+%% scatter_hooks are supported.
+%%
+%% @spec (Hook::atom(), Function::atom(), Seq::integer()) -> ok
+%% @end
+%% --------------------------------------------------------------------
+add(Hook,Function,Seq) when is_function(Function) ->
+    gen_server:call(emetric_hooks, {add, Hook, Function,Seq}).
 
-scatter(Ticks) ->
-    gen_server:cast(?MODULE, {scatter, Ticks}).
-%%    erlang:start_timer(tick_sz(?TICK,0),self(),{tick}).
 
-%%got this from eper prf.erl:44
-%% tick_sz(Tick,Offset) ->
-%%     {_,Sec,Usec} = now(),
-%%     Skew = Tick div 4,
-%%     Tick + Skew-((round(Sec*1000+Usec/1000)-Offset+Skew) rem Tick).
- 
+delete(Hook,Function,Seq) when is_function(Function) ->
+    gen_server:call(emetric_hooks, {delete, Hook,Function,Seq}).
+run(Hook,Args) ->
+    gen_server:call(emetric_hooks, {run,Hook,Args}).
+run_fold(Hook, Val, Args) ->
+    gen_server:call(emetric_hooks, {run_fold, Hook, Val, Args}).
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -58,9 +65,6 @@ scatter(Ticks) ->
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-start_link(Tick) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Tick], []).
-
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -78,11 +82,7 @@ start_link(Tick) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, Tref} = start_timer(?TICK),
-    {ok, #state{timer=Tref}};
-init([Tick]) ->
-    {ok, Tref} = start_timer(Tick),
-    {ok, #state{tick=Tick,timer=Tref}}.
+    {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -98,6 +98,33 @@ init([Tick]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({add, Hook, Function,Seq}, _From, State) ->
+    NewHooks = lists:append(State#state.hooks,[{Hook,Seq, Function}]),
+    {reply, ok, State#state{hooks=NewHooks}};
+
+handle_call({delete, Hook, Function,Seq}, _From, State) ->
+    NewHooks = lists:filter(fun({H,S,F}) ->
+				    case {H,S,F} of
+					{Hook, Seq,Function} -> false;
+					_ -> true
+				    end
+			    end,State#state.hooks),
+    {reply,ok, State#state{hooks=NewHooks}};
+
+handle_call({run,Hook,Args}, _From, State) ->
+    lists:foreach(fun(H) ->
+			  case H of
+			      %% match on the Hook called and run those
+			      {Hook,Seq,Function} ->
+				  Function(Args);
+			      _ -> ok
+			  end
+		  end, State#state.hooks),
+    {reply,ok,State};
+handle_call({run_fold,Hook,Val,Args}, _From, State) ->
+    Reply = run_fold(State#state.hooks, Hook, Val,Args),
+    {reply, Reply, State};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -112,15 +139,6 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({tick}, State) ->
-    Cnt = State#state.tick_count,
-    Ticks = emetric_hooks:run_fold(gather_hooks,[],Cnt),
-    emetric_ticker:scatter(Ticks),
-    {noreply,State#state{tick_count = Cnt+1}};
-handle_cast({scatter,Ticks}, State) ->
-    emetric_hooks:run(scatter_hooks,Ticks),
-    {noreply,State};
-    
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -165,5 +183,22 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-start_timer(Tick) ->
-    timer:apply_interval(Tick,emetric_ticker,tick,[]).
+
+run_fold([],Hook, Val, Args) -> Val;
+run_fold([H|Rest],Hook, Val, Args) ->
+    NewVal = case H of
+		 {Hook, Seq, Function} ->
+		     Function(Args,Val);
+		 _ -> Val
+	     end,
+    case NewVal of
+	stop ->
+	    stopped;
+	{stop,StopVal} ->
+	    StopVal;
+	StopVal ->
+	    run_fold(Rest,Hook,NewVal, Args)
+    end.
+	    
+	
+	    

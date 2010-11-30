@@ -1,5 +1,6 @@
 -module(emetric_cmd_connect).
 
+-behaviour(emetric_command).
 
 -export([ command_help/0,
 	  deps/0,

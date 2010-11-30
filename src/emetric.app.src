@@ -11,17 +11,42 @@
 	     emetric,
 	     emetric_core,
 	     emetric_config,
+	     emetric_util,
+	     emetric_appsrv,
 	     emetric_cmd_connect,
 	     emetric_cmd_inject,
+	     emetric_cmd_start,
+	     emetric_cmd_stop,
+	     emetric_cmd_info,
+	     emetric_stat_sys,
+	     emetric_stat_ejd,
 	     getopt
 	    ] },
   {registered, []},
   {env, [
 	 {commands, [
 		     connect,
-		     inject
+		     inject,
+		     start,
+		     info
 		    ]},
-	 {mods_prefix, emetric_mod_}
+	 {command_prefix, "emetric_cmd_"},
+	 {gather_prefix, "emetric_stats_"},
+	 {scatter_prefix, "emetric_log_"},
+	 %% list of modules to start for the gather per tick. This
+	 %% will most likely be emetric_stats_*
+	 {gather, [
+		  ]},
+	 %% list of modules to start of the scatter per tick, This
+	 %% will most likely be emetric_log_*
+	 {scatter, [
+		   ]},
+	 {base_mods, [emetric_appsrv,
+		      emetric_sup,
+		      emetric_ticker,
+		      emetric_hooks
+		      ]},
+	 {mods,[]}
 	 
 	]}
  ]}.
