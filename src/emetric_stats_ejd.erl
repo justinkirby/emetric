@@ -146,13 +146,14 @@ code_change(_OldVsn, State, _Extra) ->
 on_tick(Tick,Acc,State) ->
     %% loop over all the ejabberd hosts and provide:
     %% [{"example.com",[{stat,val},...]},...]
-    HostStats = lists:map(fun(Host) ->
+    HostStats = [{"global",constants(State) ++ global_stats()}] ++
+	lists:map(fun(Host) ->
 				  {Host, stats(Host)}
 			  end,ejabberd_config:get_global_option(hosts)),
+    
     Data = [{ejd,
-	     {tick,Tick},
-	     {global, constants(State) ++ global_stats()},
-	     {hosts, HostStats}	     
+	     [{tick,Tick},
+	      {hosts, HostStats}]
 	    }],
     Acc++Data.
 
