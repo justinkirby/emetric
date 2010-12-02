@@ -9,6 +9,7 @@ import gtk
 
 
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import mlab
 from matplotlib.ticker import EngFormatter
@@ -59,32 +60,40 @@ class SelectWin:
         self.window.set_title("The Ugly Voalte Prettiness Maker")
         self.window.connect("delete_event",self.delete_event)
 
-        vbox = gtk.VBox(True,2)
-        self.window.add(vbox)
+        
+        vcomp = gtk.VBox(True,2)
+        self.window.add(vcomp)
+
+
 
         bplot = gtk.Button("Plot")
         bplot.connect("clicked",self.plot)
-        vbox.pack_start(bplot,True,True,2)
+        vcomp.pack_start(bplot,True,True,2)
         bplot.show()
 
 
+        cpivot = gtk.combo_box_new_text()
+        cpivot.connect("changed",self.change_pivot)
+        vcomp.pack_start(cpivot,True,True,2)
+
         for i in self.interesting:
-            butt = gtk.CheckButton(i.replace("_"," "))
-            butt.connect("toggled", self.toggle_interest, i)
-            vbox.pack_start(butt, True, True, 2)
-            butt.show()
+            label = i.replace("_"," ")
+            bcomp = gtk.CheckButton(label)
+            bcomp.connect("toggled", self.toggle_interest, i)
+            vcomp.pack_start(bcomp, True, True, 2)
+            bcomp.show()
+
+            cpivot.append_text(i)
 
 
-        vbox.show()
-        self.window.show()
+
+        self.window.show_all()
 
     def delete_event(self, widget, event, data=None):
         gtk.main_quit()
         return False
 
     def toggle_interest(self, widget, data=None):
-        print "%s toggled to %s"%(data,("off","on")[widget.get_active()])
-
         if not widget.get_active():
             #remove data from list if exists
             try:
@@ -94,6 +103,12 @@ class SelectWin:
         else:
             self.keys_plot.append(data)
 
+    def change_pivot(self,widget):
+        model = widget.get_model()
+        index = widget.get_active()
+        if index >= 0:
+            self.pivot = model[index][0]
+
 
     def plot(self,widget,data=None):
         self.create_plot()
@@ -101,32 +116,59 @@ class SelectWin:
         
     def create_plot(self):
         self.pretty_cnt = self.pretty_cnt+1
-        line_style = itertools.product(self.shapes,self.colors)
 
+        # simple combinitorial product of shapes and colors so we can
+        # iterate over them. matlib likes things such as 'r.' and
+        # 'g-', etc.. 
+        line_style = itertools.product(self.shapes,self.colors)
         def next_style():
             s = list(next(line_style))
             s.reverse()
             return s
+
+        #hacky toggle, cause if we clear the plot state, we end up
+        #with am extra window        
         if self.have_graphs:
             plt.clf()
         else:
             self.have_graphs = True
 
-        fig = plt.figure()
-        sp = fig.add_subplot(111)
-        sp.set_title("Voalte Pretty %d"%(self.pretty_cnt,))
-        sp.set_xlabel("ticks (s)")
+        kp = self.keys_plot# just to make it easier to reference
 
-        xs = self.data[self.tick_key]
-        for k,i in zip(self.keys_plot,range(0,len(self.keys_plot))):
-            ys = self.data[k]
-            st = next_style()
-            sp.plot(xs,ys,"%s%s"%(st[0],st[1]))
-            sp.set_ylabel(k,color=st[0])
+        fig = plt.figure()
+        plt.subplots_adjust(hspace=0.01)
+
+
+        x_set= self.data[self.tick_key]
+        pivot_set = self.data[self.pivot]
+        color_pivot,shape_pivot = next_style()
+
+        labels_to_hide=[]
+
+        for k,i in zip(kp, range(0,len(kp))):
+
+            sp = fig.add_subplot(len(kp),1,i+1)
+            sp.set_xlabel("ticks (s)")
+
+            plt.bar(x_set,pivot_set)#,color_pivot+shape_pivot)
+            sp.set_ylabel(self.pivot,color=color_pivot)
             for tl in sp.get_yticklabels():
-                tl.set_color(st[0])
-            if i == 0:
-                sp = sp.twinx()
+                tl.set_color(color_pivot)
+
+            y_set = self.data[k]
+            color_y,shape_y = next_style()
+            ax2 = sp.twinx()
+            ax2.plot(x_set,y_set,color_y+shape_y)
+            ax2.set_ylabel(k,color=color_y)
+            for tl in ax2.get_yticklabels():
+                tl.set_color(color_y)
+
+            #hid all but the last ones
+            if i < len(kp):
+                labels_to_hide.append(sp.get_xticklabels())
+
+        plt.setp(labels_to_hide,visible=False)
+
 
         plt.show()
             
