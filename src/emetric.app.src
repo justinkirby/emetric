@@ -30,6 +30,7 @@
 		     connect,
 		     inject,
 		     start,
+		     stop,
 		     info
 		    ]},
 	 {command_prefix, "emetric_cmd_"},
