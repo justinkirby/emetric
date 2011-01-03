@@ -112,6 +112,11 @@ class SelectWin:
 
     def plot(self,widget,data=None):
         self.create_plot()
+        # ses = self.data['ejd_hosts_global_sessions']
+        # rss = self.data['sys_beam_rss']
+        # avg = np.divide(rss,ses)
+        # no = [a for a in avg if a > 0]
+        # print no
 
         
     def create_plot(self):
@@ -150,7 +155,7 @@ class SelectWin:
             sp = fig.add_subplot(len(kp),1,i+1)
             sp.set_xlabel("ticks (s)")
 
-            plt.bar(x_set,pivot_set)#,color_pivot+shape_pivot)
+            plt.bar(x_set,pivot_set, color=color_pivot, linewidth=0)
             sp.set_ylabel(self.pivot,color=color_pivot)
             for tl in sp.get_yticklabels():
                 tl.set_color(color_pivot)
@@ -239,7 +244,7 @@ def get_options(argv):
         print >>sys.stderr," for help use --help"
         return (1,{})
 
-    config = {"data":""}
+    config = {}
     for o,a in opts:
         if o in ("-h","--help"):
             print usage()

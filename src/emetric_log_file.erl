@@ -68,8 +68,9 @@ init([]) ->
 
     Now = calendar:now_to_universal_time(erlang:now()),
     Mod = State#state.filter,
-    Name = lists:flatten(io_lib:format("/tmp/emetric_~s.~s",
-				       [emetric_util:datetime_stamp(Now),
+    Name = lists:flatten(io_lib:format("/tmp/emetric_~s_~s.~s",
+				       [atom_to_list(node()),
+					emetric_util:datetime_stamp(Now),					
 					Mod:type()])),
     
     {ok, FD } = file:open(Name,[write]),
