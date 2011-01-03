@@ -244,7 +244,7 @@ def get_options(argv):
         print >>sys.stderr," for help use --help"
         return (1,{})
 
-    config = {"data":""}
+    config = {}
     for o,a in opts:
         if o in ("-h","--help"):
             print usage()
