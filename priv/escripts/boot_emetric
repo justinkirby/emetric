@@ -1,7 +1,7 @@
 #!/usr/bin/env escript
 %% -*- mode:erlang;tab-width:4;erlang-indent-level:4;indent-tabs-mode:nil -*-
 
-main(Args) ->
+main(_Args) ->
 
     %% from rebar bootstrap
     Files = load_files("*","ebin"),
