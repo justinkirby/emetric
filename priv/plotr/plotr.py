@@ -159,11 +159,12 @@ def gtk_ui(interest,dat):
                 
                 
         def plot(self,widget,data=None):
-            self.create_plot()
+            for d in self.data:
+                self.create_plot(d)
             
             
             
-        def create_plot(self):
+        def create_plot(self,data):
             self.pretty_cnt = self.pretty_cnt+1
             
             
@@ -178,53 +179,52 @@ def gtk_ui(interest,dat):
             
             #hacky toggle, cause if we clear the plot state, we end up
             #with am extra window
-            for data in self.data:
-                if self.have_graphs:
-                    plt.clf()
+            # if self.have_graphs:
+            #     plt.clf()
+            # else:
+            #     self.have_graphs = True
+                
+            kp = self.keys_plot# just to make it easier to reference
+            
+            fig = plt.figure()
+            plt.subplots_adjust(hspace=0.01)
+            
+            
+            x_set= data[self.tick_key]
+            pivot_set = data[self.pivot]
+            color_pivot,shape_pivot = next_style()
+            
+            labels_to_hide=[]
+            
+            for k,i in zip(kp, range(0,len(kp))):
+                
+                sp = fig.add_subplot(len(kp),1,i+1)
+                sp.set_xlabel("ticks (s)")
+                
+                plt.plot(x_set,pivot_set, color_pivot+shape_pivot)
+                sp.set_ylabel(self.pivot,color=color_pivot)
+                for tl in sp.get_yticklabels():
+                    tl.set_color(color_pivot)
+                    
+                if not self.pivot_per:
+                    y_set = data[k]
                 else:
-                    self.have_graphs = True
+                    y_set = data[k]/data[self.pivot]
+                color_y,shape_y = next_style()
+                ax2 = sp.twinx()
+                ax2.plot(x_set,y_set,color_y+shape_y)
+                ax2.set_ylabel(k,color=color_y)
+                for tl in ax2.get_yticklabels():
+                    tl.set_color(color_y)
                     
-                kp = self.keys_plot# just to make it easier to reference
-                
-                fig = plt.figure()
-                plt.subplots_adjust(hspace=0.01)
-                
-                
-                x_set= data[self.tick_key]
-                pivot_set = data[self.pivot]
-                color_pivot,shape_pivot = next_style()
-                
-                labels_to_hide=[]
-                
-                for k,i in zip(kp, range(0,len(kp))):
-                    
-                    sp = fig.add_subplot(len(kp),1,i+1)
-                    sp.set_xlabel("ticks (s)")
-                    
-                    plt.plot(x_set,pivot_set, color_pivot+shape_pivot)
-                    sp.set_ylabel(self.pivot,color=color_pivot)
-                    for tl in sp.get_yticklabels():
-                        tl.set_color(color_pivot)
-                        
-                    if not self.pivot_per:
-                        y_set = data[k]
-                    else:
-                        y_set = data[k]/data[self.pivot]
-                    color_y,shape_y = next_style()
-                    ax2 = sp.twinx()
-                    ax2.plot(x_set,y_set,color_y+shape_y)
-                    ax2.set_ylabel(k,color=color_y)
-                    for tl in ax2.get_yticklabels():
-                        tl.set_color(color_y)
-                        
             #hid all but the last ones
-                    if i < len(kp):
-                        labels_to_hide.append(sp.get_xticklabels())
-                        
-                        plt.setp(labels_to_hide,visible=False)
-                        
-                        
-                plt.show()
+                if i < len(kp):
+                    labels_to_hide.append(sp.get_xticklabels())
+                    
+                    plt.setp(labels_to_hide,visible=False)
+                    
+                    
+            plt.show()
     #end of class  <-- this is bad, I know
     
     selwin = SelectWin(interest,dat)
