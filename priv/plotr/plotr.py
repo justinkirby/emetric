@@ -5,6 +5,36 @@ import getopt
 import itertools
 
 
+class DepFail(Exception):
+    def __init__(self,pkg):
+        self.pkg = pkg
+        (distro,a,b,c,d) = os.uname()
+        self.os = distro
+        self.msgs={
+            "Linux":{
+                "gtk":"Use your linux pkg manager to install pygtk",
+                "numpy":"Use your linux pkg manager to install numpy",
+                "matplotlib":"Use your linux pkg manager to install matplotlib",
+                },
+            "Darwin":{
+                "gtk":"""
+Do not bother trying to install pygtk. This is just too
+painful. Instead use the headless option for this program and use a
+tool that can importdata from csv files.
+""",
+                "numpy":"Use ports to install numpy. sudo port install py26-numpy",
+                "matplotlib":"Use ports to install matplotlib, or the dmg from 1.0 on sf.net"
+                }
+            }
+
+    def message(self):
+        if self.os in self.msgs:
+            if self.pkg in self.msgs[self.os]:
+                return self.msgs[self.os][self.pkg]
+            else:
+                return "Sorry I don't know what to tell you about %s\nThis is a bug"%self.pkg
+        else:
+            return "Sorry I don't know anything about this OS, %s\nThis is probably not a bug"%self.os
 
 def validate_sys(opts):
     """
@@ -18,8 +48,7 @@ def validate_sys(opts):
         try:
             __import__(r)
         except ImportError,e:
-            print >>sys.stderr,"%s is required given the options, please install"%(r)
-            return False
+            raise DepFail(r)
     return True
         
 
@@ -363,7 +392,10 @@ def main(argv=None):
     rv,options = get_options(argv)
     if rv: return rv #we die if there was a problem
 
-    if not validate_sys(options):
+    try:
+        validate_sys(options)
+    except DepFail,e:
+        print >>sys.stderr,e.message()
         return 255
     
 
