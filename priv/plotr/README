@@ -1,0 +1,18 @@
+I tried to make this easy on osx, I probably failed.
+
+* Install
+  - install port from http://www.macports.org/
+  - sudo port -v selfupdate
+  - sudo port install py26-numpy
+  - sudo port install py26-matplotlib
+
+
+* Run
+  - /opt/local/bin/python2.6 emetric/priv/plotr/plotr.py
+    --data=path/to/file.csv --out=path/to/out.csv
+
+  This will generate a new csv file with all the uninteresting data
+  filtered out. At this point you can import into a spreadsheet and
+  make pretty graphs. Or you can make a very unsupported attempt to
+  get pygtk installed. Then you can use the --graph option and let
+  matplotlib to all the graphing for you.
