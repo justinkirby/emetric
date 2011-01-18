@@ -1,11 +1,14 @@
 %%%-------------------------------------------------------------------
-%%% @author  <>
-%%% @copyright (C) 2010, 
-%%% @doc
-%%%
+%%% @author Justin Kirby <jkirby@voalte.com>
+%%% @copyright (C) 2011 Justin Kirby
 %%% @end
-%%% Created : 23 Nov 2010 by  <>
+%%%
+%%% This source file is subject to the New BSD License. You should have received
+%%% a copy of the New BSD license with this software. If not, it can be
+%%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
+
+
 -module(emetric_stats_sys).
 
 -behaviour(gen_server).
