@@ -1,11 +1,14 @@
 %%%-------------------------------------------------------------------
-%%% @author  <>
-%%% @copyright (C) 2010, 
-%%% @doc
-%%%
+%%% @author Justin Kirby <jkirby@voalte.com>
+%%% @copyright (C) 2011 Justin Kirby
 %%% @end
-%%% Created : 26 Nov 2010 by  <>
+%%%
+%%% This source file is subject to the New BSD License. You should have received
+%%% a copy of the New BSD license with this software. If not, it can be
+%%% retrieved from: http://www.opensource.org/licenses/bsd-license.php
 %%%-------------------------------------------------------------------
+
+
 -module(emetric_ticker).
 
 -behaviour(gen_server).
@@ -114,8 +117,10 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({tick}, State) ->
     Cnt = State#state.tick_count,
-    Ticks = emetric_hooks:run_fold(gather_hooks,[],Cnt),
-    emetric_ticker:scatter(Ticks),
+    spawn(fun() ->
+		  Ticks = emetric_hooks:run_fold(gather_hooks,[],Cnt),
+		  emetric_ticker:scatter(Ticks)
+	  end),
     {noreply,State#state{tick_count = Cnt+1}};
 handle_cast({scatter,Ticks}, State) ->
     emetric_hooks:run(scatter_hooks,Ticks),
