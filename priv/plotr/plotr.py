@@ -240,6 +240,7 @@ def gtk_ui(interest,dat):
                 
                 sp = fig.add_subplot(len(kp),1,i+1)
                 sp.set_xlabel("ticks (s)")
+                sp.grid(True)
                 
                 plt.plot(x_set,pivot_set, color_pivot+shape_pivot)
                 sp.set_ylabel(self.pivot,color=color_pivot)
