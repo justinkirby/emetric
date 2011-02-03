@@ -364,7 +364,7 @@ mem_info(["Inactive:",V,"kB"|T]) ->
 mem_info(["HighTotal:",V,"kB"|T]) ->
     [{high_total, list_to_integer(V)*1024}|mem_info(T)];
 mem_info(["HighFree:",V,"kB"|T]) ->
-    [{high_total, list_to_integer(V)*1024}|mem_info(T)];
+    [{high_free, list_to_integer(V)*1024}|mem_info(T)];
 mem_info(["LowTotal:",V,"kB"|T]) ->
     [{low_total, list_to_integer(V)*1024}|mem_info(T)];
 mem_info(["LowFree:",V,"kB"|T]) ->
