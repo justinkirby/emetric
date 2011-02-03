@@ -16,6 +16,9 @@ import getopt
 import itertools
 
 
+
+
+
 class DepFail(Exception):
     def __init__(self,pkg):
         self.pkg = pkg
@@ -105,7 +108,7 @@ $python plotr.py --graph --data=emetric_ejabberd\@localhost_123456789.csv
 def gtk_ui(interest,dat):
     import numpy as np
     import matplotlib.pyplot as plt
-    from matplotlib.ticker import EngFormatter
+#    from matplotlib.ticker import EngFormatter
 
 
     import pygtk
