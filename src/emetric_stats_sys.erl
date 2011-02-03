@@ -421,7 +421,8 @@ net_info([H|T],Cols) ->
     [Face, Data] = string:tokens(H,":"),
     PlainFace = string:strip(Face),
     Fcols = lists:map(fun(C) -> list_to_atom(PlainFace++"_"++C) end,Cols),
-    lists:zip(Fcols,string:tokens(Data," "))++net_info(T,Cols);
+    DataInt = lists:map(fun(D) -> list_to_integer(D) end, string:tokens(Data, " ")),
+    lists:zip(Fcols,DataInt)++net_info(T,Cols);
 net_info([],_Cols) -> [].
 			     
     
