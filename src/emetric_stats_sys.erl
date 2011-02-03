@@ -223,11 +223,11 @@ stats() ->
 
 %% OS info
 %% only the 'linux' (i.e. linux 2.6 or higher) strategy implemented
--record(fds,{proc_stat,proc_self_stat}).
+-record(fds,{proc_stat,proc_self_stat,proc_meminfo,proc_net}).
 
 
-os_info({linux,#fds{proc_stat=FDs,proc_self_stat=FDss}}) ->
-  proc_stat(FDs)++proc_self_stat(FDss);
+os_info({linux,#fds{proc_stat=FDs,proc_self_stat=FDss,proc_meminfo=Mi, proc_net=Net}}) ->
+  proc_stat(FDs)++proc_self_stat(FDss)++proc_meminfo(Mi)++proc_net(Net);
 os_info(_) ->
   [].
 
@@ -257,6 +257,14 @@ proc_self_stat(FDss) ->
 	     to_int(Rss), %% in pages...
 	     to_int(Minflt),to_int(Majflt)]).
 
+proc_meminfo(Fd) ->
+    {ok, Str} = file:pread(Fd,0,2048),
+    mem_info(string:tokens(Str, " \n")).
+
+proc_net(Fd) ->
+    {ok,Str} = file:pread(Fd,0,1024),
+    net_info(string:tokens(Str,"\n")).
+
 to_sec(J) ->
   to_int(J)/100. %should use a better transform jiffies->secs
 
@@ -282,7 +290,9 @@ strategy() ->
 init_linux() ->
     {ok,FDs} = file:open("/proc/stat",[read]),
     {ok,FDss} = file:open("/proc/self/stat",[read]),
-    #fds{proc_stat=FDs, proc_self_stat=FDss}.
+    {ok,Mi} = file:open("/proc/meminfo",[read]),
+    {ok,Net} = file:open("/proc/net/dev",[read]),
+    #fds{proc_stat=FDs, proc_self_stat=FDss, proc_meminfo=Mi, proc_net=Net}.
 
 
 
@@ -305,3 +315,113 @@ init_state(State = #state{strategy={linux,_}}) ->
 		cores = cores(State#state.strategy)};
 init_state(State) ->
     State.
+
+
+%% MemTotal:      8168216 kB
+%% MemFree:       3339092 kB
+%% Buffers:         11080 kB
+%% Cached:         186824 kB
+%% SwapCached:     266908 kB
+%% Active:        2011000 kB
+%% Inactive:      2703476 kB
+%% HighTotal:           0 kB
+%% HighFree:            0 kB
+%% LowTotal:      8168216 kB
+%% LowFree:       3339092 kB
+%% SwapTotal:     6088624 kB
+%% SwapFree:      2576548 kB
+%% Dirty:             208 kB
+%% Writeback:           0 kB
+%% AnonPages:     4267468 kB
+%% Mapped:          10648 kB
+%% Slab:            51352 kB
+%% PageTables:      30640 kB
+%% NFS_Unstable:        0 kB
+%% Bounce:              0 kB
+%% CommitLimit:  10172732 kB
+%% Committed_AS: 12786192 kB
+%% VmallocTotal: 34359738367 kB
+%% VmallocUsed:    266012 kB
+%% VmallocChunk: 34359472251 kB
+%% HugePages_Total:     0
+%% HugePages_Free:      0
+%% HugePages_Rsvd:      0
+%% Hugepagesize:     2048 kB
+mem_info(["MemTotal:",V,"kB"|T]) ->
+    [{mem_total, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["MemFree:",V,"kB"|T]) ->
+    [{mem_free, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Buffers:",V,"kB"|T]) ->
+    [{buffers, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Cached:",V,"kB"|T]) ->
+    [{cached, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["SwapCached:",V,"kB"|T]) ->
+    [{swap_cached, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Active:",V,"kB"|T]) ->
+    [{active, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Inactive:",V,"kB"|T]) ->
+    [{inactive, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["HighTotal:",V,"kB"|T]) ->
+    [{high_total, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["HighFree:",V,"kB"|T]) ->
+    [{high_total, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["LowTotal:",V,"kB"|T]) ->
+    [{low_total, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["LowFree:",V,"kB"|T]) ->
+    [{low_free, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["SwapTotal:",V,"kB"|T]) ->
+    [{swap_total, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["SwapFree:",V,"kB"|T]) ->
+    [{swap_free, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Dirty:",V,"kB"|T]) ->
+    [{dirty, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Writeback:",V,"kB"|T]) ->
+    [{write_back, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["AnonPages:",V,"kB"|T]) ->
+    [{anon_pages, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Mapped:",V,"kB"|T]) ->
+    [{mapped, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Slab:",V,"kB"|T]) ->
+    [{slab, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["PageTables:",V,"kB"|T]) ->
+    [{page_tables, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["NFS_Unstable:",V,"kB"|T]) ->
+    [{nfs_unstable, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Bounce:",V,"kB"|T]) ->
+    [{bounce, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["CommitLimit:",V,"kB"|T]) ->
+    [{commit_limit, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Committed_AS:",V,"kB"|T]) ->
+    [{committed_as, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["VmallocTotal:",V,"kB"|T]) ->
+    [{vmalloc_total, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["VmallocUsed:",V,"kB"|T]) ->
+    [{vmalloc_used, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["VmallocChunk:",V,"kB"|T]) ->
+    [{vmalloc_chunk, list_to_integer(V)*1024}|mem_info(T)];
+mem_info(["Hugepagesize:",V,"kB"|T]) ->
+    [{hugepagesize, list_to_integer(V)*1024}|mem_info(T)];
+mem_info([_Unk, _V,"kB"|T]) ->
+    mem_info(T);
+mem_info([_Unk, "0"|T]) ->
+    mem_info(T);
+mem_info([]) -> [].
+
+
+
+net_info([_H|T]) ->
+    %ignore the first line:
+    net_info(T,cols).
+net_info([H|T],cols) ->
+    [_Face, Receive, Transmit] = string:tokens(H,"|"),
+    Rcols = lists:map(fun(C) -> "recv_"++C end,string:tokens(Receive," ")),
+    Tcols = lists:map(fun(C) -> "trans_"++C end, string:tokens(Transmit," ")),
+    net_info(T, Rcols++Tcols);
+net_info([H|T],Cols) ->
+    [Face, Data] = string:tokens(H,":"),
+    PlainFace = string:strip(Face),
+    Fcols = lists:map(fun(C) -> list_to_atom(PlainFace++"_"++C) end,Cols),
+    lists:zip(Fcols,string:tokens(Data," "))++net_info(T,Cols);
+net_info([],_Cols) -> [].
+			     
+    
