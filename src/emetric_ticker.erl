@@ -117,11 +117,12 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({tick}, State) ->
     Cnt = State#state.tick_count,
-    spawn(fun() ->
-		  Ticks = emetric_hooks:run_fold(gather_hooks,[],Cnt),
-		  emetric_ticker:scatter(Ticks)
-	  end),
+    case emetric_hooks:run_fold(gather_hooks,[],Cnt) of
+	timeout -> ok;
+	Ticks -> emetric_ticker:scatter(Ticks)
+    end,
     {noreply,State#state{tick_count = Cnt+1}};
+
 handle_cast({scatter,Ticks}, State) ->
     emetric_hooks:run(scatter_hooks,Ticks),
     {noreply,State};

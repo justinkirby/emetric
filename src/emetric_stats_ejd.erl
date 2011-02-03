@@ -39,7 +39,10 @@ sup() -> ?CHILD(?MODULE,worker).
 tick(test,[]) ->
     on_tick(0,[],#state{});
 tick(Tick,Acc) ->
-    gen_server:call(?SERVER, {tick,Tick,Acc},infinity).%% this may be bad
+    gen_server:call(?SERVER, {tick,Tick,Acc}).
+    
+			    
+
 
 
 %%--------------------------------------------------------------------

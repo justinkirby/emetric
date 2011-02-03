@@ -57,7 +57,12 @@ delete(Hook,Function,Seq) when is_function(Function) ->
 run(Hook,Args) ->
     gen_server:call(emetric_hooks, {run,Hook,Args}).
 run_fold(Hook, Val, Args) ->
-    gen_server:call(emetric_hooks, {run_fold, Hook, Val, Args},infinity).
+    case catch gen_server:call(emetric_hooks, {run_fold, Hook, Val, Args}) of
+	{'EXIT', _Reason} -> timeout;
+	Ticks -> Ticks
+    end.
+    
+	    
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -118,7 +123,7 @@ handle_call({run,Hook,Args}, _From, State) ->
     lists:foreach(fun(H) ->
 			  case H of
 			      %% match on the Hook called and run those
-			      {Hook,Seq,Function} ->
+			      {Hook,_Seq,Function} ->
 				  Function(Args);
 			      _ -> ok
 			  end
@@ -187,11 +192,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-run_fold([],Hook, Val, Args) -> Val;
+run_fold([],_Hook, Val, _Args) -> Val;
 run_fold([H|Rest],Hook, Val, Args) ->
     NewVal = case H of
-		 {Hook, Seq, Function} ->
-		     Function(Args,Val);
+		 {Hook, _Seq, Function} ->
+		     case catch Function(Args,Val) of
+			 {'EXIT', _Reason} -> [];
+			 Other -> Other
+		     end;
 		 _ -> Val
 	     end,
     case NewVal of
@@ -199,7 +207,7 @@ run_fold([H|Rest],Hook, Val, Args) ->
 	    stopped;
 	{stop,StopVal} ->
 	    StopVal;
-	StopVal ->
+	_StopVal ->
 	    run_fold(Rest,Hook,NewVal, Args)
     end.
 	    
