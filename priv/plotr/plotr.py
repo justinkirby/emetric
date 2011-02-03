@@ -139,32 +139,47 @@ def gtk_ui(interest,dat):
             self.window.connect("delete_event",self.delete_event)
             
             
-            vcomp = gtk.VBox(True,2)
+            vcomp = gtk.VBox(False,2)
             self.window.add(vcomp)
             
             
             
             bplot = gtk.Button("Plot")
             bplot.connect("clicked",self.plot)
-            vcomp.pack_start(bplot,True,True,2)
+            vcomp.pack_start(bplot,False,True,2)
             
             bper = gtk.CheckButton("Pivot Per")
             bper.connect("toggled",self.toggle_per)
-            vcomp.pack_start(bper,True,True,2)
+            vcomp.pack_start(bper,False,True,2)
             
             
             cpivot = gtk.combo_box_new_text()
             cpivot.connect("changed",self.change_pivot)
-            vcomp.pack_start(cpivot,True,True,2)
+            vcomp.pack_start(cpivot,False,True,2)
+
+            sz = len(self.interesting)
+            row_cnt = 20
+            cols_cnt = sz/row_cnt
             
+            table = gtk.Table(row_cnt,cols_cnt,False)
+            vcomp.pack_start(table,False,True,2)
             
             self.interesting.sort()
-            for i in self.interesting:
+            col = 0
+            for r,i in itertools.izip(itertools.cycle(range(0,20)),self.interesting):
                 label = i.replace("_"," ")
                 bcomp = gtk.CheckButton(label)
                 bcomp.connect("toggled", self.toggle_interest, i)
-                vcomp.pack_start(bcomp, True, True, 2)
-                bcomp.show()
+
+                table.attach(bcomp, col,col+1, r,r+1)
+
+                if r == 19:
+                    col += 1
+                    
+
+                
+                
+
                 
                 cpivot.append_text(i)
                     
