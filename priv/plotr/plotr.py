@@ -14,11 +14,7 @@ import os
 import sys
 import getopt
 import itertools
-from plotr_units import Units
 
-
-
-units = Units()
 
 class DepFail(Exception):
     def __init__(self,pkg):
@@ -30,6 +26,7 @@ class DepFail(Exception):
                 "gtk":"Use your linux pkg manager to install pygtk",
                 "numpy":"Use your linux pkg manager to install numpy",
                 "matplotlib":"Use your linux pkg manager to install matplotlib",
+                "yaml":"User your linux pkg manager to install python yaml",
                 },
             "Darwin":{
                 "gtk":"""
@@ -38,7 +35,8 @@ painful. Instead use the headless option for this program and use a
 tool that can importdata from csv files.
 """,
                 "numpy":"Use ports to install numpy. sudo port install py26-numpy",
-                "matplotlib":"Use ports to install matplotlib, or the dmg from 1.0 on sf.net"
+                "matplotlib":"Use ports to install matplotlib, or the dmg from 1.0 on sf.net",
+                "yaml":"Use ports to install python yaml."
                 }
             }
 
@@ -56,8 +54,12 @@ def validate_sys(opts):
     Make sure the required deps exist. Be friendly by not doing anything    
     """
     reqs=["numpy","matplotlib"]
+    if opts["ui"]:
+        reqs.extend(["gtk","pygtk"])
     if opts["graph"]:
-        reqs.extend(["gtk","pygtk","matplotlib.pyplot"])
+        reqs.extend(["matplotlib.pyplot"])
+    if "config" in opts:
+        reqs.extend(["yaml"])
 
     for r in reqs:
         try:
@@ -80,8 +82,11 @@ This will display a list of 'interesting' fields in which you can compare in lin
 -h|--help:
     print this help message
 
+-u|--ui:
+    Uses gtk UI and allows interaction.
+
 -g|--graph:
-    Enables graphing using pltr, e.g. the gui. This require pygtk to be installed.
+    Enables graphing using pltr. This requires matlib plot to be installed.
 
 -o file|--out=file:
     File to write cleaned csv data to.  This is required if --graph is not specified 
@@ -91,6 +96,9 @@ This will display a list of 'interesting' fields in which you can compare in lin
 
 -b|--boring :
    Include boring stuff.
+
+-c file|--config=file:
+   Config file to use. Especially useful if not using --ui
 
 Definition of Interesting: if the standard deviation of a column is > 0. (There is some change in the value.)
 
@@ -102,13 +110,11 @@ Examples:
 Without graphing support
 $python plotr.py --data=emetric_ejabberd\@localhost_123456789.csv --out=clean_emetric.csv
 
-With graphing support
-$python plotr.py --graph --data=emetric_ejabberd\@localhost_123456789.csv 
+With UI support
+$python plotr.py --ui --data=emetric_ejabberd\@localhost_123456789.csv 
 """
 
 def gtk_ui(interest,dat):
-    import numpy as np
-    import matplotlib.pyplot as plt
 
     import pygtk
     pygtk.require('2.0')
@@ -117,24 +123,7 @@ def gtk_ui(interest,dat):
     class SelectWin:
         def __init__(self, interesting, data):
             self.interesting = interesting
-            self.data = data
-            self.have_graphs=False
-            self.pretty_cnt = 0
-            self.keys_plot = []
-            self.pivot_per = False
-            self.tick_key = ""
-            self.colors = ['b','g','r','c','m','y','k']
-            self.shapes = ['.',',','o','v','^','<','>','1','2','3','4','s','p',
-                           '*','h','H','+','x','D','d','|','_']
-                       
-
-            #figure out which tick name to use, should make tick name
-            #more findable, e.g. tick
-            for tn in ['sys_tick','ejd_tick','mnesia_tick']:
-                if tn in interesting:
-                    self.tick_key=tn
-                    break
-                
+            self.plotr = Plot(interesting,data)
                 
             self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
             self.window.set_title("The Ugly Voalte Prettiness Maker")
@@ -177,12 +166,6 @@ def gtk_ui(interest,dat):
 
                 if r == 19:
                     col += 1
-                    
-
-                
-                
-
-                
                 cpivot.append_text(i)
                     
                     
@@ -196,100 +179,29 @@ def gtk_ui(interest,dat):
         def toggle_interest(self, widget, data=None):
             if not widget.get_active():
             #remove data from list if exists
-                try:
-                    del self.keys_plot[self.keys_plot.index(data)]
-                except ValueError,err:
-                    pass
+                self.plotr.keys_del(data)
             else:
-                self.keys_plot.append(data)
+                self.plotr.plot_key(data)
                 
         def toggle_per(self,widget):
-            self.pivot_per = widget.get_active()
+            self.plotr.pivot_on(widget.get_active())
             
         def change_pivot(self,widget):
             model = widget.get_model()
             index = widget.get_active()
             if index >= 0:
-                self.pivot = model[index][0]
+                self.plotr.pivot_key(model[index][0])
             else:
-                self.pivot = None
+                self.plotr.pivot_key(None)
                 
                 
         def plot(self,widget,data=None):
-            for d in self.data:
-                self.create_plot(d)
+            import matplotlib.pyplot as plt
+            self.plotr.create(lambda: plt.show())
             
             
             
-        def create_plot(self,data):
-            self.pretty_cnt = self.pretty_cnt+1
             
-            
-            # simple combinitorial product of shapes and colors so we can
-            # iterate over them. matlib likes things such as 'r.' and
-            # 'g-', etc.. 
-            line_style = itertools.product(self.shapes,self.colors)
-            def next_style():
-                s = list(next(line_style))
-                s.reverse()
-                return s
-            
-            #hacky toggle, cause if we clear the plot state, we end up
-            #with am extra window
-            # if self.have_graphs:
-            #     plt.clf()
-            # else:
-            #     self.have_graphs = True
-                
-            kp = self.keys_plot# just to make it easier to reference
-            
-            fig = plt.figure(figsize=(15,10))
-            plt.subplots_adjust(hspace=0.01)
-            
-            
-            x_set= data[self.tick_key]
-            pv_info = units.info(self.pivot)
-
-
-            pv_conv = np.frompyfunc(pv_info["convert"],1,1)
-            pivot_set = pv_conv(data[self.pivot])
-            color_pivot,shape_pivot = next_style()
-            
-            labels_to_hide=[]
-            
-            for k,i in zip(kp, range(0,len(kp))):
-                
-                sp = fig.add_subplot(len(kp),1,i+1)
-                sp.set_xlabel("ticks (s)")
-                sp.grid(True)
-                
-                plt.plot(x_set,pivot_set, color_pivot+shape_pivot)
-                sp.set_ylabel(pv_info["label"],color=color_pivot)
-                for tl in sp.get_yticklabels():
-                    tl.set_color(color_pivot)
-                    
-                if not self.pivot_per:
-                    y_set = data[k]
-                else:
-                    y_set = data[k]/data[self.pivot]
-                color_y,shape_y = next_style()
-                ax2 = sp.twinx()
-                ax2.plot(x_set,y_set,color_y+shape_y)
-                unit_info = units.info(k)
-                label = "%s (%s)"%(unit_info["label"],unit_info["unit"])
-                ax2.set_ylabel(label,color=color_y)
-                for tl in ax2.get_yticklabels():
-                    tl.set_color(color_y)
-                    
-            #hid all but the last ones
-                if i < len(kp):
-                    labels_to_hide.append(sp.get_xticklabels())
-                    
-                    plt.setp(labels_to_hide,visible=False)
-                    
-                    
-            fig.savefig("foo.svg")
-            plt.show()
 
     #end of class  <-- this is bad, I know
     
@@ -300,8 +212,137 @@ class Plot:
     def __init__(self, keys, data):
         self.keys = keys
         self.data = data
+        self.fig = None
+        self.pivot = None
+        self.keys_plot = []
+        self.pivot_per = False
+        self.colors = ['b','g','r','c','m','y','k']
+        self.shapes = ['.',',','o','v','^','<','>','1','2','3','4','s','p',
+                       '*','h','H','+','x','D','d','|','_']
+
+        #figure out which tick name to use, should make tick name
+        #more findable, e.g. tick
+        for tn in ['sys_tick','ejd_tick','mnesia_tick']:
+            if tn in keys:
+                self.tick_key=tn
+                break
+
+    def pivot_key(self,p):
+        self.pivot = p
+
+    def pivot_on(self,p):
+        self.pivot_per = p
         
+
+    def keys_del(self,k):
+        try:
+            del self.keys_plot[self.keys_plot.index(k)]
+        except ValueError,err:
+            pass
+
+    def plot_key(self,k):
+        self.keys_plot.append(k)
+       
+    def save(self,fnm):
+        self.fig.savefig(fnm)
+
+    def create(self,cb=None):
+        for d in self.data:
+            self.create_plot(d,cb)
         
+    def create_plot(self,data,cb=None):
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from plotr_units import Units
+
+        units = Units()
+#        self.pretty_cnt = self.pretty_cnt+1
+            
+            
+        # simple combinitorial product of shapes and colors so we can
+        # iterate over them. matlib likes things such as 'r.' and
+        # 'g-', etc.. 
+        line_style = itertools.product(self.shapes,self.colors)
+        def next_style():
+            s = list(next(line_style))
+            s.reverse()
+            return s
+            
+                
+        kp = self.keys_plot# just to make it easier to reference
+            
+        self.fig = plt.figure(figsize=(15,10))
+        plt.subplots_adjust(hspace=0.01)
+            
+            
+        x_set= data[self.tick_key]
+        pv_info = units.info(self.pivot)
+
+
+        pv_conv = np.frompyfunc(pv_info["convert"],1,1)
+        pivot_set = pv_conv(data[self.pivot])
+        color_pivot,shape_pivot = next_style()
+            
+        labels_to_hide=[]
+            
+        for k,i in zip(kp, range(0,len(kp))):
+                
+            sp = self.fig.add_subplot(len(kp),1,i+1)
+            sp.set_xlabel("ticks (s)")
+            sp.grid(True)
+                
+            plt.plot(x_set,pivot_set, color_pivot+shape_pivot)
+            sp.set_ylabel(pv_info["label"],color=color_pivot)
+            for tl in sp.get_yticklabels():
+                tl.set_color(color_pivot)
+                    
+            if not self.pivot_per:
+                y_set = data[k]
+            else:
+                y_set = data[k]/data[self.pivot]
+            color_y,shape_y = next_style()
+            ax2 = sp.twinx()
+            ax2.plot(x_set,y_set,color_y+shape_y)
+            unit_info = units.info(k)
+            label = "%s (%s)"%(unit_info["label"],unit_info["unit"])
+            ax2.set_ylabel(label,color=color_y)
+            for tl in ax2.get_yticklabels():
+                tl.set_color(color_y)
+                    
+            #hid all but the last ones
+            if i < len(kp):
+                labels_to_hide.append(sp.get_xticklabels())
+                    
+                plt.setp(labels_to_hide,visible=False)
+
+        if cb is not None:
+            cb()
+                    
+                    
+def headless(opts,interesting,data):
+    import yaml
+
+    from os import path
+    dr = path.abspath(path.dirname(opts["data"][0]))
+
+
+    cfg = yaml.load(file(opts["config"],'r'))
+    for k,pv in cfg.iteritems():
+        for v in pv:
+            p = Plot(interesting,data)
+            p.pivot_key(k)
+            p.plot_key(v["key"])
+            
+            if v["pivot"]:
+                p.pivot_on(True)
+
+            p.create()
+
+            p.save("%s/%s-%s.svg"%(dr,k,v["key"]))
+            
+    
+
+    
         
 
 def interesting_out(opts,interesting,data):
@@ -402,8 +443,10 @@ def get_options(argv):
     
     try:
         try:
-            opts,args = getopt.getopt(argv[1:], "hd:bgo:",
-                                      ["help","data=","boring","graph","out="])
+            opts,args = getopt.getopt(argv[1:], "hd:bgo:uc:",
+                                      ["help","data=","boring",
+                                       "graph","out=","ui",
+                                       "config="])
         except getopt.error,msg:
             raise Usage(msg)
     except Usage,err:
@@ -412,7 +455,8 @@ def get_options(argv):
         return (1,{})
 
     config = {"boring":False,
-              "graph":False}
+              "graph":False,
+              "ui":False}
     for o,a in opts:
         if o in ("-h","--help"):
             print usage()
@@ -425,6 +469,10 @@ def get_options(argv):
             config["graph"] = True
         if o in("-o","--out"):
             config["out"] = a
+        if o in("-u","--ui"):
+            config["ui"] = True
+        if o in("-c","--config"):
+            config["config"] = a
             
             
     return (0,config)
@@ -447,8 +495,10 @@ def main(argv=None):
 
     (interesting,data) = extract_interesting(options)
 
-    if options["graph"]:
+    if options["ui"]:
         gtk_ui(interesting,data)
+    elif options["graph"]:
+        headless(options,interesting,data)
     else:
         if "out" not in options:
             print >>sys.stderr,"You need to specify --out file if not running with graph, see --help"
