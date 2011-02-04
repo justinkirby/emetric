@@ -14,10 +14,11 @@ import os
 import sys
 import getopt
 import itertools
+from plotr_units import Units
 
 
 
-
+units = Units()
 
 class DepFail(Exception):
     def __init__(self,pkg):
@@ -108,8 +109,6 @@ $python plotr.py --graph --data=emetric_ejabberd\@localhost_123456789.csv
 def gtk_ui(interest,dat):
     import numpy as np
     import matplotlib.pyplot as plt
-#    from matplotlib.ticker import EngFormatter
-
 
     import pygtk
     pygtk.require('2.0')
@@ -244,12 +243,16 @@ def gtk_ui(interest,dat):
                 
             kp = self.keys_plot# just to make it easier to reference
             
-            fig = plt.figure()
+            fig = plt.figure(figsize=(15,10))
             plt.subplots_adjust(hspace=0.01)
             
             
             x_set= data[self.tick_key]
-            pivot_set = data[self.pivot]
+            pv_info = units.info(self.pivot)
+
+
+            pv_conv = np.frompyfunc(pv_info["convert"],1,1)
+            pivot_set = pv_conv(data[self.pivot])
             color_pivot,shape_pivot = next_style()
             
             labels_to_hide=[]
@@ -261,7 +264,7 @@ def gtk_ui(interest,dat):
                 sp.grid(True)
                 
                 plt.plot(x_set,pivot_set, color_pivot+shape_pivot)
-                sp.set_ylabel(self.pivot,color=color_pivot)
+                sp.set_ylabel(pv_info["label"],color=color_pivot)
                 for tl in sp.get_yticklabels():
                     tl.set_color(color_pivot)
                     
@@ -272,7 +275,9 @@ def gtk_ui(interest,dat):
                 color_y,shape_y = next_style()
                 ax2 = sp.twinx()
                 ax2.plot(x_set,y_set,color_y+shape_y)
-                ax2.set_ylabel(k,color=color_y)
+                unit_info = units.info(k)
+                label = "%s (%s)"%(unit_info["label"],unit_info["unit"])
+                ax2.set_ylabel(label,color=color_y)
                 for tl in ax2.get_yticklabels():
                     tl.set_color(color_y)
                     
@@ -283,13 +288,20 @@ def gtk_ui(interest,dat):
                     plt.setp(labels_to_hide,visible=False)
                     
                     
+            fig.savefig("foo.svg")
             plt.show()
+
     #end of class  <-- this is bad, I know
     
     selwin = SelectWin(interest,dat)
     gtk.main()
             
-            
+class Plot:
+    def __init__(self, keys, data):
+        self.keys = keys
+        self.data = data
+        
+        
         
 
 def interesting_out(opts,interesting,data):
