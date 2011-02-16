@@ -302,8 +302,12 @@ class Plot:
                 y_set = data[k]/data[self.pivot]
             color_y,shape_y = next_style()
             ax2 = sp.twinx()
-            ax2.plot(x_set,y_set,color_y+shape_y)
+
             unit_info = units.info(k)
+            y_conv = np.frompyfunc(unit_info["convert"],1,1)
+            ax2.plot(x_set,y_conv(y_set),color_y+shape_y)
+
+
             label = "%s (%s)"%(unit_info["label"],unit_info["unit"])
             ax2.set_ylabel(label,color=color_y)
             for tl in ax2.get_yticklabels():
@@ -320,25 +324,74 @@ class Plot:
                     
                     
 def headless(opts,interesting,data):
-    import yaml
-
     from os import path
+    from plotr_units import Units
     dr = path.abspath(path.dirname(opts["data"][0]))
 
+    plots = []
+    units = Units()
 
-    cfg = yaml.load(file(opts["config"],'r'))
-    for k,pv in cfg.iteritems():
-        for v in pv:
-            p = Plot(interesting,data)
-            p.pivot_key(k)
-            p.plot_key(v["key"])
+
+    def plot_gen(pivot_key, plot_key, pivot_on):
+        p = Plot(interesting,data)
+        p.pivot_key(pivot_key)
+        p.plot_key(plot_key)
             
-            if v["pivot"]:
-                p.pivot_on(True)
+        if pivot_on:
+            p.pivot_on(True)
+        p.create()
+        p.save("%s/%s-%s.png"%(dr,pivot_key,plot_key))
+        plots.append({"file":"%s-%s.png"%(pivot_key,plot_key),
+                      "key":plot_key,
+                      "name":units.info(plot_key)["label"]})
 
-            p.create()
+        
+    import yaml
+    if "config" in opts:
+        cfg = yaml.load(file(opts["config"],'r'))
+        for k,pv in cfg.iteritems():
+            for v in pv:
+                plot_gen(k,v["key"],v["pivot"])
 
-            p.save("%s/%s-%s.svg"%(dr,k,v["key"]))
+    else:
+        pivot_key = "ejd_hosts_global_sessions"
+        for i in interesting:
+            if i == pivot_key:
+                continue
+            print i
+            plot_gen(pivot_key, i, False)
+
+    from string import Template
+
+    #create index.html with a toc
+    toc = []
+    img = []
+    toc_t = Template("<li><a href='#${key}'>${name}</a></li>")
+    img_t = Template("<div><h3><a name='${key}'>${name}</a></h3><p><img src='${file}'></p></div>")
+    for p in plots:
+        toc.append(toc_t.substitute(p))
+        img.append(img_t.substitute(p))
+
+    html = {"toc":"".join(toc),
+            "img":"".join(img),
+            "csv":path.basename(opts["data"][0])            
+            }
+
+        
+    html_t = Template("<html><body><h1><a href='${csv}'>CSV</a></h1><div><ol>${toc}</ol></div><div>${img}</div></body></html>")
+    with open("%s/index.html"%(dr,), 'w') as index:
+        index.write(html_t.substitute(html))
+    
+
+        
+
+
+            
+
+        
+        
+                
+            
             
     
 
