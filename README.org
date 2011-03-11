@@ -1,0 +1,97 @@
+#+OPTIONS: author:nil creator:nil date:nil
+
+* Quick
+
+#+begin_example
+git clone git://github.com/justinkirby/emetric.git
+cd emetric && ./rebar compile
+./emetric --node=slow@localhost --cookie=monster start gather=sys,mnesia scatter=file mods=emetric_filter_csv
+tail /tmp/emetric_slow@localhost_201103102159.csv
+./emetric --node=slow@localhost --cookie=monster stop
+#+end_example
+
+* Overview
+
+  The purpose of emetric is to gather statistics and data from a
+  running erlang node.
+
+  The goal is to have a single file that is easy to 'install' on any
+  environment that has erlang. There is no complicated release install
+  process (inspired by rebar)
+
+* Build
+
+  This is a standard rebar build
+
+#+begin_example
+./rebar compile
+#+end_example
+
+  After a successful build, there will be a single executable file,
+  emetric.
+
+* Usage
+  
+  emetric will do the following:
+  - connect to a remote node
+  - inject the necessary modules
+  - start emetric 
+    
+ Each command may have dependencies. If it does then those are run
+ first. You do not have to specify all commands in order if you simply
+ want to start recording.
+
+ Of course, there are the *help* and *version* commands, which do the
+ obvious.
+    
+** connect
+   This will connect to an erlang node and make sure that emetric can communicate with it.
+
+#+begin_example
+./emetric --node=slow@localhost --cookie=monster connect
+#+end_example
+   It is one of those lovely commands that will do nothing on success
+   and be very noisy during failure. It does, however, return 0 on
+   success and >=1 on failure
+
+** inject
+   This requires a successful connect.
+
+   The modules for gathering the statistics, scattering them to files
+   and filtering them need to be specified here.
+
+#+begin_example
+./emetric --node=slow@localhost --cookie=monster inject gather=sys,mnesia scatter=file mods=emetric_filter_csv
+#+end_example
+   The above will gather system wide metrics, mnesia statistics and dump them all out to a csv file in /tmp
+
+** start
+   This will start recording of all requested metrics and push them
+   out to a file (easy to add more datasources) every two seconds.
+
+   Supported metrics are:
+   - system and linux
+   - mnesia
+   - ejabberd
+
+#+begin_example
+./emetric --node=slow@localhost --cookie=monster inject gather=sys,mnesia scatter=file mods=emetric_filter_csv
+#+end_example
+
+   The above will make sure all the appropriate modules are injected
+   in the remote slow@localhost node. It will start the internal
+   ticker that is triggered every two seconds to gather the metrics.
+
+   Once the metrics are all gathered for that 'tick', it is sent to
+   the scatter modules, in this case a file. The filter is applied
+   before writing the data.
+
+   The file name is created via the following template:
+#+begin_example
+/tmp/emetric_node()_YYYYMMDDHHmm.ext
+#+end_example   
+   Example
+#+begin_example
+/tmp/emetric_slow@localhost_201103102211.csv
+#+end_example   
+
