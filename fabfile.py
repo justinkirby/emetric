@@ -14,8 +14,7 @@ from datetime import datetime
 
 env.now = datetime.now().strftime("%Y%m%d%H%M")
 env.ver = "00.01.00"
-env.pdir = "/Volumes/OurData/WebServer/kickstart.voalte.net/emetric"
-env.hosts = ["jkirby@office.voalte.net:64322"]
+
 
 def release(version=None):
     dirnm = "%s/%s/%s"%(env.pdir,env.ver,env.now)
