@@ -4,10 +4,15 @@
 
 #+begin_example
 git clone git://github.com/justinkirby/emetric.git
+
 cd emetric && ./rebar compile
+
 ./emetric --node=slow@localhost --cookie=monster start gather=sys,mnesia scatter=file mods=emetric_filter_csv
+
 tail /tmp/emetric_slow@localhost_201103102159.csv
+
 ./emetric --node=slow@localhost --cookie=monster stop
+
 #+end_example
 
 * Overview
