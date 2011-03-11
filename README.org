@@ -100,3 +100,10 @@ tail /tmp/emetric_slow@localhost_201103102159.csv
 /tmp/emetric_slow@localhost_201103102211.csv
 #+end_example   
 
+** stop
+   The emetric will happily keep recording data until either the host
+   node dies or you tell it to stop. (hopefully it is the latter.)
+
+#+begin_example
+./emetric --node=slow@localhost --cookie=monster stop
+#+end_example   
