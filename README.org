@@ -17,11 +17,9 @@ tail /tmp/emetric_slow@localhost_201103102159.csv
 
 * Overview
 
-  The purpose of emetric is to create a high level view of the
-  resources that a running erlang system consumes over time.
-
-  I wrote this primarily to get a view on system behavior during long
-  running stress test.
+  emetric creates a high level view of the resources that a running
+  erlang system consumes over time. This is useful for long running
+  stress tests.
   
 
 
