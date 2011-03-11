@@ -17,14 +17,19 @@ tail /tmp/emetric_slow@localhost_201103102159.csv
 
 * Overview
 
-  The purpose of emetric is to gather statistics and data from a
-  running erlang node.
+  The purpose of emetric is to create a high level view of the
+  resources that a running erlang system consumes over time.
 
+  I wrote this primarily to get a view on system behavior during long
+  running stress test.
+  
+
+
+* Build
   The goal is to have a single file that is easy to 'install' on any
   environment that has erlang. There is no complicated release install
   process (inspired by rebar)
 
-* Build
 
   This is a standard rebar build
 
