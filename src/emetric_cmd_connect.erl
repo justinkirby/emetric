@@ -16,7 +16,7 @@ command_help() ->
 deps() -> [].
 
 run() ->
-    %% if there is a cookie, change ourse
+    %% if there is a cookie, change ours
     Cookie = list_to_atom(emetric_config:get_global(cookie)),
     Node = list_to_atom(emetric_config:get_global(node)),
     ok = ping(Node,Cookie).
@@ -25,20 +25,31 @@ run() ->
 
 
 ping(Node,Cookie) ->
+
+    NameType = long_or_short(emetric_config:get_global(node)),
     %%escript doesn't start this
-    {ok,_Pid} = net_kernel:start(['emetric@localhost',shortnames]),
+    {ok,_Pid} = net_kernel:start(['emetric@localhost',NameType]),
 
     %% it is possible to have the names out of sync in epmd
     %% need to wait for the names to get worked out
     global:sync(),
 
     erlang:set_cookie(node(),Cookie),
-    pong = net_adm:ping(Node),
-
-    ok.
+    case net_adm:ping(Node) of
+        pong -> ok;
+        pang ->
+            io:format("pang~n",[]),
+            halt(1)
+    end.
     
     
 
 
 
     
+long_or_short(Node) ->
+    case lists:member($@,Node) of
+        true -> longnames;
+        false -> shortnames
+    end.
+            
