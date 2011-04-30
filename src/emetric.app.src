@@ -18,6 +18,7 @@
 	     emetric_cmd_start,
 	     emetric_cmd_stop,
 	     emetric_cmd_info,
+	     emetric_cmd_ping,
 	     emetric_stat_sys,
 	     emetric_stat_ejd,
 	     emetric_stat_mnesia,
@@ -31,7 +32,8 @@
 		     inject,
 		     start,
 		     stop,
-		     info
+		     info,
+		     ping
 		    ]},
 	 {command_prefix, "emetric_cmd_"},
 	 {gather_prefix, "emetric_stats_"},

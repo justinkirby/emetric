@@ -12,7 +12,7 @@
 -behaviour(emetric_loadable).
 
 %% API
--export([start/1,start_link/0,stop/0,deps/0,sup/0,run/1]).
+-export([start/1,start_link/0,stop/0,deps/0,sup/0,run/1,ping/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -33,6 +33,16 @@ start(Env) ->
     gen_server:start({local,?SERVER}, ?MODULE, [Env],[]).
 stop() ->
     gen_server:call(?SERVER, stop).
+
+ping() ->
+    case whereis(?SERVER) of
+        undefined -> pang;
+        Pid ->
+            case gen_server:call(Pid,ping) of
+                pong -> pong;                    
+                Status -> Status
+            end
+    end.
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -80,6 +90,8 @@ handle_call({start,Specs}, _From, State) ->
     {reply, ok, State#state{sup=Sup}};
 handle_call(stop, _From, State) ->
     {stop,normal,State};
+handle_call(ping, _From, State) ->
+    {reply, pong, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
