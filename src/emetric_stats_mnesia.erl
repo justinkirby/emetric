@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010, 
+%%% @copyright (C) 2010,
 %%% @doc
 %%%
 %%% @end
@@ -13,17 +13,24 @@
 
 -include("emetric.hrl").
 %% API
--export([start_link/0,
-	 deps/0,
-	 sup/0,
-	 tick/2
-	]).
+-export([
+         start_link/0,
+         deps/0,
+         sup/0,
+         tick/2
+        ]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([
+         init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 
 -record(state, {}).
 
@@ -31,12 +38,12 @@
 %%% API
 %%%===================================================================
 deps() -> [emetric_hooks].
-sup() -> ?CHILD(?MODULE,worker).
+sup() -> ?CHILD(?MODULE, worker).
 
 tick(test,[]) ->
     on_tick(0,[],#state{});
-tick(Tick,Acc) ->
-    gen_server:call(?SERVER, {tick,Tick,Acc}).
+tick(Tick, Acc) ->
+    gen_server:call(?SERVER, {tick, Tick, Acc}).
 
 
 %%--------------------------------------------------------------------
@@ -65,7 +72,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(gather_hooks, fun(T,A) -> emetric_stats_mnesia:tick(T,A) end,2),
+    emetric_hooks:add(gather_hooks, fun(T, A) -> emetric_stats_mnesia:tick(T, A) end, 2),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -83,7 +90,7 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({tick, Tick, Acc}, _From, State) ->
-    {reply,on_tick(Tick,Acc,State),State};
+    {reply, on_tick(Tick, Acc, State), State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -143,39 +150,39 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-on_tick(Tick,Acc,State) ->
-    SystemMetrics = [{held_locks,cnt},%% need to do a len()
-		     {lock_queue,cnt},%% need to do a len()
-		     {subscribers,cnt},%% need to do a len()
-		     {tables,cnt},%% len()
-		     {transactions,cnt},%% len()
-		     transaction_failures,
-		     transaction_commits,
-		     transaction_restarts,
-		     transaction_log_writes],
-    TableMetrics = [{checkpoints,cnt},
-		    {subscribers,cnt},
-		    memory,
-		    size],
-    		    
-    System = lists:map(fun({K,cnt}) ->
-			       {K,length(mnesia:system_info(K))};
-			  (K) ->
-			       {K,mnesia:system_info(K)}
-		       end,SystemMetrics),
-    
-		     
+on_tick(Tick, Acc, State) ->
+    SystemMetrics = [{held_locks, cnt},%% need to do a len()
+                     {lock_queue, cnt},%% need to do a len()
+                     {subscribers, cnt},%% need to do a len()
+                     {tables, cnt},%% len()
+                     {transactions, cnt},%% len()
+                     transaction_failures,
+                     transaction_commits,
+                     transaction_restarts,
+                     transaction_log_writes],
+    TableMetrics = [{checkpoints, cnt},
+                    {subscribers, cnt},
+                    memory,
+                    size],
+
+    System = lists:map(fun({K, cnt}) ->
+                               {K, length(mnesia:system_info(K))};
+                          (K) ->
+                               {K, mnesia:system_info(K)}
+                       end, SystemMetrics),
+
+
     Tables = mnesia:system_info(tables),
 
     TableData = lists:map(fun(Table) ->
-				  Metrics = lists:map(fun({K,cnt}) ->
-							      {K, length(mnesia:table_info(Table,K))};
-							 (K) ->
-							      {K,mnesia:table_info(Table,K)}
-						      end,TableMetrics),
-				  {Table,Metrics}
-			  end,Tables),
+                                  Metrics = lists:map(fun({K, cnt}) ->
+                                                              {K, length(mnesia:table_info(Table, K))};
+                                                         (K) ->
+                                                              {K, mnesia:table_info(Table, K)}
+                                                      end, TableMetrics),
+                                  {Table, Metrics}
+                          end, Tables),
     [{mnesia, [{system, System},
-	       {table, TableData}]}|Acc].
+               {table, TableData}]}|Acc].
 
 

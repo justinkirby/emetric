@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010, 
+%%% @copyright (C) 2010,
 %%% @doc
 %%%
 %%% @end
@@ -13,42 +13,49 @@
 
 -include("emetric.hrl").
 %% API
--export([start_link/0,
-	 start_link/1,
-	 deps/0,
-	 sup/0,
-	 tick/0,
-	 scatter/1
-	]).
+-export([
+         start_link/0,
+         start_link/1,
+         deps/0,
+         sup/0,
+         tick/0,
+         scatter/1
+        ]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([
+         init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
--define(SERVER, ?MODULE). 
--define(TICK,2000).
+-define(SERVER, ?MODULE).
+-define(TICK, 2000).
 
--record(state, {tick = ?TICK,timer=0,tick_count=0}).
+-record(state, {tick = ?TICK, timer=0, tick_count=0}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 deps() -> [emetric_hooks].
-sup() -> ?CHILD(?MODULE,worker).
+sup() -> ?CHILD(?MODULE, worker).
 
 tick() ->
     gen_server:cast(?MODULE, {tick}).
 
 scatter(Ticks) ->
     gen_server:cast(?MODULE, {scatter, Ticks}).
-%%    erlang:start_timer(tick_sz(?TICK,0),self(),{tick}).
+%%    erlang:start_timer(tick_sz(?TICK, 0), self(),{tick}).
 
 %%got this from eper prf.erl:44
-%% tick_sz(Tick,Offset) ->
-%%     {_,Sec,Usec} = now(),
+%% tick_sz(Tick, Offset) ->
+%%     {_, Sec, Usec} = now(),
 %%     Skew = Tick div 4,
 %%     Tick + Skew-((round(Sec*1000+Usec/1000)-Offset+Skew) rem Tick).
- 
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -82,7 +89,7 @@ init([]) ->
     {ok, #state{timer=Tref}};
 init([Tick]) ->
     {ok, Tref} = start_timer(Tick),
-    {ok, #state{tick=Tick,timer=Tref}}.
+    {ok, #state{tick=Tick, timer=Tref}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -114,13 +121,13 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({tick}, State) ->
     Cnt = State#state.tick_count,
-    Ticks = emetric_hooks:run_fold(gather_hooks,[],Cnt),
+    Ticks = emetric_hooks:run_fold(gather_hooks,[], Cnt),
     emetric_ticker:scatter(Ticks),
-    {noreply,State#state{tick_count = Cnt+1}};
-handle_cast({scatter,Ticks}, State) ->
-    emetric_hooks:run(scatter_hooks,Ticks),
-    {noreply,State};
-    
+    {noreply, State#state{tick_count = Cnt+1}};
+handle_cast({scatter, Ticks}, State) ->
+    emetric_hooks:run(scatter_hooks, Ticks),
+    {noreply, State};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -166,4 +173,4 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 start_timer(Tick) ->
-    timer:apply_interval(Tick,emetric_ticker,tick,[]).
+    timer:apply_interval(Tick, emetric_ticker, tick,[]).
