@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010, 
+%%% @copyright (C) 2010,
 %%% @doc
 %%%
 %%% @end
@@ -13,30 +13,30 @@
 
 -include("emetric.hrl").
 %% API
--export([start_link/0,
-	 deps/0,
-	 sup/0,
-	 add/3,
-	 delete/3,
-	 run/2,
-	 run_fold/3
-	]).
+-export([
+         start_link/0,
+         deps/0,
+         sup/0,
+         add/3,
+         delete/3,
+         run/2,
+         run_fold/3
+        ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 
--record(state, {hooks=[]
-	       }).
+-record(state, {hooks=[] }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 deps() -> [].
-sup() -> ?CHILD(?MODULE,worker).
-    
+sup() -> ?CHILD(?MODULE, worker).
+
 
 %%--------------------------------------------------------------------
 %% @doc Adds a function to the hook. Currently on gather_hooks and
@@ -45,14 +45,14 @@ sup() -> ?CHILD(?MODULE,worker).
 %% @spec (Hook::atom(), Function::atom(), Seq::integer()) -> ok
 %% @end
 %% --------------------------------------------------------------------
-add(Hook,Function,Seq) when is_function(Function) ->
-    gen_server:call(emetric_hooks, {add, Hook, Function,Seq}).
+add(Hook, Function, Seq) when is_function(Function) ->
+    gen_server:call(emetric_hooks, {add, Hook, Function, Seq}).
 
 
-delete(Hook,Function,Seq) when is_function(Function) ->
-    gen_server:call(emetric_hooks, {delete, Hook,Function,Seq}).
-run(Hook,Args) ->
-    gen_server:call(emetric_hooks, {run,Hook,Args}).
+delete(Hook, Function, Seq) when is_function(Function) ->
+    gen_server:call(emetric_hooks, {delete, Hook, Function, Seq}).
+run(Hook, Args) ->
+    gen_server:call(emetric_hooks, {run, Hook, Args}).
 run_fold(Hook, Val, Args) ->
     gen_server:call(emetric_hooks, {run_fold, Hook, Val, Args}).
 
@@ -98,31 +98,31 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({add, Hook, Function,Seq}, _From, State) ->
-    NewHooks = lists:append(State#state.hooks,[{Hook,Seq, Function}]),
+handle_call({add, Hook, Function, Seq}, _From, State) ->
+    NewHooks = lists:append(State#state.hooks,[{Hook, Seq, Function}]),
     {reply, ok, State#state{hooks=NewHooks}};
 
-handle_call({delete, Hook, Function,Seq}, _From, State) ->
-    NewHooks = lists:filter(fun({H,S,F}) ->
-				    case {H,S,F} of
-					{Hook, Seq,Function} -> false;
-					_ -> true
-				    end
-			    end,State#state.hooks),
-    {reply,ok, State#state{hooks=NewHooks}};
+handle_call({delete, Hook, Function, Seq}, _From, State) ->
+    NewHooks = lists:filter(fun({H, S, F}) ->
+                                    case {H, S, F} of
+                                        {Hook, Seq, Function} -> false;
+                                        _ -> true
+                                    end
+                            end, State#state.hooks),
+    {reply, ok, State#state{hooks=NewHooks}};
 
-handle_call({run,Hook,Args}, _From, State) ->
+handle_call({run, Hook, Args}, _From, State) ->
     lists:foreach(fun(H) ->
-			  case H of
-			      %% match on the Hook called and run those
-			      {Hook,Seq,Function} ->
-				  Function(Args);
-			      _ -> ok
-			  end
-		  end, State#state.hooks),
-    {reply,ok,State};
-handle_call({run_fold,Hook,Val,Args}, _From, State) ->
-    Reply = run_fold(State#state.hooks, Hook, Val,Args),
+                          case H of
+                              %% match on the Hook called and run those
+                              {Hook, Seq, Function} ->
+                                  Function(Args);
+                              _ -> ok
+                          end
+                  end, State#state.hooks),
+    {reply, ok, State};
+handle_call({run_fold, Hook, Val, Args}, _From, State) ->
+    Reply = run_fold(State#state.hooks, Hook, Val, Args),
     {reply, Reply, State};
 
 handle_call(_Request, _From, State) ->
@@ -184,21 +184,21 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-run_fold([],Hook, Val, Args) -> Val;
-run_fold([H|Rest],Hook, Val, Args) ->
+run_fold([], Hook, Val, Args) -> Val;
+run_fold([H|Rest], Hook, Val, Args) ->
     NewVal = case H of
-		 {Hook, Seq, Function} ->
-		     Function(Args,Val);
-		 _ -> Val
-	     end,
+                 {Hook, Seq, Function} ->
+                     Function(Args, Val);
+                 _ -> Val
+             end,
     case NewVal of
-	stop ->
-	    stopped;
-	{stop,StopVal} ->
-	    StopVal;
-	StopVal ->
-	    run_fold(Rest,Hook,NewVal, Args)
+        stop ->
+            stopped;
+        {stop, StopVal} ->
+            StopVal;
+        StopVal ->
+            run_fold(Rest, Hook, NewVal, Args)
     end.
-	    
-	
-	    
+
+
+

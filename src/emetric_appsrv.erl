@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010, 
+%%% @copyright (C) 2010,
 %%% @doc
 %%%
 %%% @end
@@ -12,15 +12,29 @@
 -behaviour(emetric_loadable).
 
 %% API
--export([start/1,start_link/0,stop/0,deps/0,sup/0,run/1,ping/0]).
+-export([
+         start/1,
+         start_link/0,
+         stop/0,
+         deps/0,
+         sup/0,
+         run/1,
+         ping/0
+        ]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([
+         init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 
--record(state, {env,sup}).
+-record(state, {env, sup}).
 
 %%%===================================================================
 %%% API
@@ -28,7 +42,7 @@
 deps() -> [].
 sup() -> [].
 run(Specs) ->
-    gen_server:call(?SERVER,{start,Specs}).
+    gen_server:call(?SERVER,{start, Specs}).
 start(Env) ->
     gen_server:start({local,?SERVER}, ?MODULE, [Env],[]).
 stop() ->
@@ -38,8 +52,8 @@ ping() ->
     case whereis(?SERVER) of
         undefined -> pang;
         Pid ->
-            case gen_server:call(Pid,ping) of
-                pong -> pong;                    
+            case gen_server:call(Pid, ping) of
+                pong -> pong;
                 Status -> Status
             end
     end.
@@ -85,11 +99,11 @@ init([Env]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({start,Specs}, _From, State) ->
+handle_call({start, Specs}, _From, State) ->
     {ok, Sup } = emetric_sup:start_link(Specs),
-    {reply, ok, State#state{sup=Sup}};
+    {reply, ok, State#state{sup = Sup}};
 handle_call(stop, _From, State) ->
-    {stop,normal,State};
+    {stop, normal, State};
 handle_call(ping, _From, State) ->
     {reply, pong, State};
 handle_call(_Request, _From, State) ->

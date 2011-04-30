@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010, 
+%%% @copyright (C) 2010,
 %%% @doc
 %%%
 %%% @end
@@ -13,17 +13,24 @@
 
 -include("emetric.hrl").
 %% API
--export([start_link/0,
-	 deps/0,
-	 sup/0,
-	 tick/2
-	]).
+-export([
+         start_link/0,
+         deps/0,
+         sup/0,
+         tick/2
+        ]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+-export([
+         init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 
 -record(state, {}).
 
@@ -31,12 +38,12 @@
 %%% API
 %%%===================================================================
 deps() -> [emetric_hooks].
-sup() -> ?CHILD(?MODULE,worker).
+sup() -> ?CHILD(?MODULE, worker).
 
 tick(test,[]) ->
     on_tick(0,[],#state{});
-tick(Tick,Acc) ->
-    gen_server:call(?SERVER, {tick,Tick,Acc}).
+tick(Tick, Acc) ->
+    gen_server:call(?SERVER, {tick, Tick, Acc}).
 
 
 %%--------------------------------------------------------------------
@@ -65,7 +72,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(gather_hooks, fun(T,A) -> emetric_stats_ejd:tick(T,A) end,2),
+    emetric_hooks:add(gather_hooks, fun(T, A) -> emetric_stats_ejd:tick(T, A) end, 2),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -83,7 +90,7 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({tick, Tick, Acc}, _From, State) ->
-    {reply,on_tick(Tick,Acc,State),State};
+    {reply, on_tick(Tick, Acc, State), State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -143,30 +150,30 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-on_tick(Tick,Acc,State) ->
+on_tick(Tick, Acc, State) ->
     %% loop over all the ejabberd hosts and provide:
-    %% [{"example.com",[{stat,val},...]},...]
-    HostStats = [{"global",constants(State) ++ global_stats()}] ++
-	lists:map(fun(Host) ->
-				  {Host, stats(Host)}
-			  end,ejabberd_config:get_global_option(hosts)),
-    
+    %% [{"example.com",[{stat, val},...]},...]
+    HostStats = [{"global", constants(State) ++ global_stats()}] ++
+        lists:map(fun(Host) ->
+                          {Host, stats(Host)}
+                  end, ejabberd_config:get_global_option(hosts)),
+
     Data = [{ejd,
-	     [{tick,Tick},
-	      {hosts, HostStats}]
-	    }],
+             [{tick, Tick},
+              {hosts, HostStats}]
+            }],
     Acc++Data.
 
 constants(_State) ->
-    [{now,now()}].
+    [{now, now()}].
 
 global_stats() ->
     Sessions = length(ejabberd_sm:dirty_get_my_sessions_list()),
-    [{sessions,Sessions}].
+    [{sessions, Sessions}].
 
 stats(Host) ->
     Users = ejabberd_auth:get_vh_registered_users_number(Host),
     Online = length(ejabberd_sm:get_vh_session_list(Host)),
     [{users_total, Users},
      {users_online, Online}].
-    
+

@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010, 
+%%% @copyright (C) 2010,
 %%% @doc
 %%%
 %%% @end
@@ -13,30 +13,31 @@
 
 -include("emetric.hrl").
 %% API
--export([start_link/0,
-	 deps/0,
-	 sup/0,
-	 tick/1
-	]).
+-export([
+         start_link/0,
+         deps/0,
+         sup/0,
+         tick/1
+        ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 
 -record(state, {file = 0,
-		header=false, %% whether we have recorded the header to the file
-		filter=emetric_filter_csv
-	       }).
+                header=false, %% whether we have recorded the header to the file
+                filter=emetric_filter_csv
+               }).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 deps() -> [emetric_hooks].
-sup() -> ?CHILD(?MODULE,worker).
+sup() -> ?CHILD(?MODULE, worker).
 tick(Acc) ->
-    gen_server:cast(?SERVER, {tick,Acc}).
+    gen_server:cast(?SERVER, {tick, Acc}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -63,16 +64,16 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(scatter_hooks, fun(A) -> emetric_log_file:tick(A) end,1),
+    emetric_hooks:add(scatter_hooks, fun(A) -> emetric_log_file:tick(A) end, 1),
     State = #state{},
 
     Now = calendar:now_to_universal_time(erlang:now()),
     Mod = State#state.filter,
     Name = lists:flatten(io_lib:format("/tmp/emetric_~s_~s.~s",
-				       [atom_to_list(node()),
-					emetric_util:datetime_stamp(Now),					
-					Mod:type()])),
-    
+                                       [atom_to_list(node()),
+                                        emetric_util:datetime_stamp(Now),
+                                        Mod:type()])),
+
     {ok, FD } = file:open(Name,[write]),
     {ok, State#state{file = FD}}.
 
@@ -104,9 +105,9 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({tick,Acc}, State) ->
-    {Lines,NewState} = filter_tick(Acc,State),
-    io:format(NewState#state.file,Lines,[]),
+handle_cast({tick, Acc}, State) ->
+    {Lines, NewState} = filter_tick(Acc, State),
+    io:format(NewState#state.file, Lines,[]),
     {noreply, NewState};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -152,18 +153,18 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-filter_tick(Acc,State) ->
+filter_tick(Acc, State) ->
     Mod = State#state.filter,
-    {Header,NewState} = case State#state.header of
-			    false ->
-				Head = Mod:header(Acc),
-				H = lists:flatten(io_lib:format("~s~n",[Head])),
-				NS = State#state{header = true},
-				{H,NS};
-			    true ->
-				{"",State}
-			end,
+    {Header, NewState} = case State#state.header of
+                            false ->
+                                Head = Mod:header(Acc),
+                                H = lists:flatten(io_lib:format("~s~n",[Head])),
+                                NS = State#state{header = true},
+                                {H, NS};
+                            true ->
+                                {"", State}
+                        end,
     Row = Mod:row(Acc),
-    {lists:flatten(io_lib:format("~s~s~n",[Header,Row])),
+    {lists:flatten(io_lib:format("~s~s~n",[Header, Row])),
      NewState}.
-    
+

@@ -2,10 +2,11 @@
 
 -behaviour(emetric_command).
 
--export([command_help/0,
-	 deps/0,
-	 run/0
-	 ]).
+-export([
+         command_help/0,
+         deps/0,
+         run/0
+        ]).
 
 
 command_help()->
@@ -18,5 +19,3 @@ run() ->
     AllMods = emetric_config:get_modules(),
     io:format("injected: ~p~n",[Injected]),
     io:format("all: ~p~n",[AllMods]).
-    
-    
