@@ -115,7 +115,7 @@ handle_call({run, Hook, Args}, _From, State) ->
     lists:foreach(fun(H) ->
                           case H of
                               %% match on the Hook called and run those
-                              {Hook, Seq, Function} ->
+                              {Hook, _Seq, Function} ->
                                   Function(Args);
                               _ -> ok
                           end
@@ -184,10 +184,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-run_fold([], Hook, Val, Args) -> Val;
+run_fold([], _Hook, Val, _Args) -> Val;
 run_fold([H|Rest], Hook, Val, Args) ->
     NewVal = case H of
-                 {Hook, Seq, Function} ->
+                 {Hook, _Seq, Function} ->
                      Function(Args, Val);
                  _ -> Val
              end,
@@ -196,7 +196,7 @@ run_fold([H|Rest], Hook, Val, Args) ->
             stopped;
         {stop, StopVal} ->
             StopVal;
-        StopVal ->
+        _StopVal ->
             run_fold(Rest, Hook, NewVal, Args)
     end.
 
