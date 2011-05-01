@@ -150,7 +150,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-on_tick(Tick, Acc, State) ->
+on_tick(_Tick, Acc, _State) ->
     SystemMetrics = [{held_locks, cnt},%% need to do a len()
                      {lock_queue, cnt},%% need to do a len()
                      {subscribers, cnt},%% need to do a len()

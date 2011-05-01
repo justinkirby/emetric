@@ -17,7 +17,11 @@
          start_link/0,
          deps/0,
          sup/0,
-         tick/2
+         tick/2,
+         state/1,
+         state/0,
+         on_receive_packet/4,
+         on_send_packet/3
         ]).
 
 %% gen_server callbacks
@@ -32,7 +36,11 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {
+          in_ejd = false,
+          stanza_in=[],
+          stanza_out=[]
+         }).
 
 %%%===================================================================
 %%% API
@@ -45,6 +53,30 @@ tick(test,[]) ->
 tick(Tick, Acc) ->
     gen_server:call(?SERVER, {tick, Tick, Acc}).
 
+state(pretty) ->
+    case whereis(?SERVER) of
+        undefined -> "not running";
+        Pid -> gen_server:call(Pid, pretty)
+    end.
+state() ->
+    case whereis(?SERVER) of
+        undefined -> "not running";
+        Pid -> gen_server:call(Pid, state)
+    end.
+
+
+
+on_receive_packet(Jid, From, To, Packet) ->
+    case whereis(?SERVER) of
+        undefined -> ok;%% if we aren't running, not much that can be done
+        Pid -> gen_server:cast(Pid, {recv, Jid, From, To, Packet})
+    end.
+
+on_send_packet(From, To, Packet) ->
+    case whereis(?SERVER) of
+        undefined -> ok;%% if we aren't running, not much that can be done
+        Pid -> gen_server:cast(Pid, {send, From, To, Packet})
+    end.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -72,8 +104,14 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(gather_hooks, fun(T, A) -> emetric_stats_ejd:tick(T, A) end, 2),
-    {ok, #state{}}.
+
+    case code:is_loaded(ejabberd_hooks) of
+        false -> {ok, #state{}};
+        _ ->
+
+            {ok, add_hooks()}
+
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -89,8 +127,22 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+
+handle_call(_Msg, _From, #state{in_ejd = false} = State) ->
+    {stop, normal, State};
 handle_call({tick, Tick, Acc}, _From, State) ->
     {reply, on_tick(Tick, Acc, State), State};
+handle_call(pretty, _From, State) ->
+    KvSpec = "  ~s ~p~n",
+    Flat = fun(P) ->
+                   [lists:flatten(io_lib:format(KvSpec,[K,V])) || {K,V} <- P]
+           end,
+    In = lists:flatten(io_lib:format("IN~n~s~n",[Flat(State#state.stanza_in)])),
+    Out = lists:flatten(io_lib:format("Out~n~s~n",[Flat(State#state.stanza_out)])),
+
+    {reply, In++Out, State};
+handle_call(state, _From, State) ->
+    {reply, State, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -105,6 +157,17 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({recv, _Jid, _From, _To, Packet}, State) ->
+%%    ?CONSOLE("RECV ~p ~p ~p ~p~n",[Jid, From, To, Packet]),
+    Key = packet_to_key(Packet),
+    New = State#state{stanza_in = incr_key(Key, State#state.stanza_in)},
+    {noreply, New};
+
+handle_cast({send, _From, _To, Packet}, State) ->
+    Key = packet_to_key(Packet),
+    New = State#state{stanza_out = incr_key(Key, State#state.stanza_out)},
+    {noreply, New};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -132,8 +195,12 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
-    ok.
+terminate(_Reason, State) ->
+    case State#state.in_ejd of
+        false -> ok;
+        true ->
+            del_hooks()
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -150,6 +217,44 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+
+add_hooks() ->
+    lists:foreach(fun(Host) ->
+                          ejabberd_hooks:add(user_send_packet,
+                                             Host,
+                                             ?MODULE,
+                                             on_send_packet,
+                                             100),
+                          ejabberd_hooks:add(user_receive_packet,
+                                             Host,
+                                             ?MODULE,
+                                             on_receive_packet,
+                                             100)
+                  end,ejabberd_config:get_global_option(hosts)),
+    emetric_hooks:add(gather_hooks,
+                      fun emetric_stats_ejd:tick/2,
+                      2),                          
+    #state{in_ejd = true}.
+
+del_hooks() ->
+    emetric_hooks:delete(gather_hooks,
+                         fun emetric_stats_ejd:tick/2,
+                         2),
+    lists:foreach(fun(Host) ->
+            ejabberd_hooks:delete(user_receive_packet,
+                                  Host,
+                                  ?MODULE,
+                                  on_receive_packet,
+                                  100),
+            ejabberd_hooks:delete(user_send_packet,
+                                  Host,
+                                  ?MODULE,
+                                  on_send_packet,
+                                  100)
+                  end, ejabberd_config:get_global_option(hosts)),
+    ok.
+                
+
 on_tick(Tick, Acc, State) ->
     %% loop over all the ejabberd hosts and provide:
     %% [{"example.com",[{stat, val},...]},...]
@@ -160,7 +265,10 @@ on_tick(Tick, Acc, State) ->
 
     Data = [{ejd,
              [{tick, Tick},
-              {hosts, HostStats}]
+              {hosts, HostStats},
+              {stanza_in, [S || S <- State#state.stanza_in]},
+              {stanza_out, [S || S <- State#state.stanza_out]}
+             ]
             }],
     Acc++Data.
 
@@ -176,4 +284,32 @@ stats(Host) ->
     Online = length(ejabberd_sm:get_vh_session_list(Host)),
     [{users_total, Users},
      {users_online, Online}].
+
+
+
+packet_to_key({xmlelement, "presence", _, _}) -> "presence";
+packet_to_key({xmlelement, "message", _, _}) -> "message";
+packet_to_key({xmlelement, "iq", Ats, Children}) ->
+    Type = case xml:get_attr("type", Ats) of
+               {value, Value} -> Value;
+               false -> "none"
+           end,
+    Ns = first_child_ns(Children),
+    lists:flatten(io_lib:format("iq_~s_~s",[Type, Ns]));                     
+packet_to_key(_Packet) -> undefined.
+
+
+first_child_ns([{xmlelement, _, Ats, _Children}|_]) ->
+    xml:get_attr_s("xmlns", Ats).
+
+
+incr_key(Key, PropList) ->
+    case proplists:get_value(Key, PropList) of
+        undefined -> [{Key, 1}|PropList];
+        Old ->
+            P1 = proplists:delete(Key,PropList),
+            [{Key,Old+1}|P1]
+    end.
+
+
 

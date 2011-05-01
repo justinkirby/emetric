@@ -1,4 +1,3 @@
-!
 -module(emetric_sup).
 
 -behaviour(supervisor).
