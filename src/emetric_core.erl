@@ -31,6 +31,9 @@ run(Args) ->
     %% start logger when we have it
 
     application:start(emetric),
+
+    emetric_config:config_file(),
+
     CmdPre = emetric_config:get_global(command_prefix),
 
     CommandAtoms = [list_to_atom(CmdPre++C) || C <- Commands],
@@ -147,5 +150,7 @@ option_spec_list() ->
     [
      {help, $h, "help", undefined, "Display help message."},
      {node, $n, "node", string, "erlang node to connect to."},
-     {cookie, $c, "cookie", string, "erlang cookie for remote node"}
+     {cookie, $c, "cookie", string, "erlang cookie for remote node"},
+     {config, $f, "config", string, "config file"},
+     {noconfig, $F, "noconfig", undefined, "Do NOT load config file even if one is found"}
      ].

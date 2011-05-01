@@ -10,3 +10,6 @@
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, brutal_kill, Type, [I]}).
 -define(CHILD(I, Type, Arg), {I, {I, start_link, [Arg]}, permanent, brutal_kill, Type, [I]}).
+
+
+-define(CONFIG_PATHS, ["/etc/emetric.cfg",os:getenv("HOME")++"/.emetric"]).
