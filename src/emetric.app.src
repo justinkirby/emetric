@@ -1,61 +1,64 @@
+%% -*- mode: erlang -*-
 {application, emetric,
  [
   {description, "Erlang Metrics Logger"},
   {vsn, "1"},
-  {applications, [
-                  kernel,
-                  stdlib,
-		  sasl
-                 ]},
-  {modules, [
-	     emetric,
-	     emetric_core,
-	     emetric_config,
-	     emetric_util,
-	     emetric_appsrv,
-	     emetric_cmd_connect,
-	     emetric_cmd_inject,
-	     emetric_cmd_start,
-	     emetric_cmd_stop,
-	     emetric_cmd_info,
-	     emetric_cmd_ping,
-	     emetric_stat_sys,
-	     emetric_stat_ejd,
-	     emetric_stat_mnesia,
-	     emetric_filter_csv,
-	     getopt
-	    ] },
+  {applications,
+   [ kernel,
+     stdlib,
+     sasl
+   ]},
+  {modules,
+   [ emetric,
+     emetric_core,
+     emetric_config,
+     emetric_util,
+     emetric_appsrv,
+     emetric_cmd_connect,
+     emetric_cmd_inject,
+     emetric_cmd_start,
+     emetric_cmd_stop,
+     emetric_cmd_info,
+     emetric_cmd_ping,
+     emetric_cmd_reopen_log,
+     emetric_stat_sys,
+     emetric_stat_ejd,
+     emetric_stat_mnesia,
+     emetric_filter_csv,
+     getopt
+   ] },
   {registered, []},
-  {env, [
-	 {commands, [
-		     connect,
-		     inject,
-		     start,
-		     stop,
-		     info,
-		     ping
-		    ]},
-	 {command_prefix, "emetric_cmd_"},
-	 {gather_prefix, "emetric_stats_"},
-	 {scatter_prefix, "emetric_log_"},
-	 {filter_prefix, "emetric_filter_"},
-	 %% list of modules to start for the gather per tick. This
-	 %% will most likely be emetric_stats_*
-	 {gather, [
-		  ]},
-	 %% list of modules to start of the scatter per tick, This
-	 %% will most likely be emetric_log_*
-	 {scatter, [
-		   ]},
-	 {filter, [
-		  ]},
-	 {base_mods, [emetric_appsrv,
-		      emetric_sup,
-		      emetric_ticker,
-		      emetric_hooks,
-		      emetric_util
-		      ]},
-	 {mods,[]}
-	 
-	]}
+  {env,
+   [ {commands,
+      [ connect,
+        inject,
+        start,
+        stop,
+        info,
+        ping,
+        reopen_log
+      ]},
+     {command_prefix, "emetric_cmd_"},
+     {gather_prefix, "emetric_stats_"},
+     {scatter_prefix, "emetric_log_"},
+     {filter_prefix, "emetric_filter_"},
+     %% list of modules to start for the gather per tick. This
+     %% will most likely be emetric_stats_*
+     {gather, [
+          ]},
+     %% list of modules to start of the scatter per tick, This
+     %% will most likely be emetric_log_*
+     {scatter, [
+           ]},
+     {filter, [
+          ]},
+     {base_mods, [emetric_appsrv,
+              emetric_sup,
+              emetric_ticker,
+              emetric_hooks,
+              emetric_util
+              ]},
+     {mods,[]}
+
+    ]}
  ]}.

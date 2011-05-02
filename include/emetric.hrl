@@ -1,4 +1,5 @@
--define(CONSOLE(Str, Args), io:format(Str,Args)).
+                      
+-define(CONSOLE(Str, Args), io:format(Str, Args)).
 
 %%TODO: move following to a logger
 -define(DEBUG(Str, Args), io:format(Str, Args)).

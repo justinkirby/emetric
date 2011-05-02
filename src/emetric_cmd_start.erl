@@ -29,7 +29,8 @@ run() ->
 
 supervise(Node) ->
 
-    Env = application:get_env(emetric),
+    Env = application:get_all_env(emetric),
+    
 
     %% get a list of base modules that can be supervised.
     %% we will have race conditions if we don't stage the start
@@ -62,6 +63,12 @@ supervise(Node) ->
                                 halt(1)
                         end,
                         fun() -> io:format("running~n",[]) end),
+    emetric_util:rpc_ok(Node, emetric_appsrv, config, [Env],
+                        fun(Error) ->
+                                io:format("ERROR: failed to config: ~p~n",[Error]),
+                                halt(1)
+                        end,
+                        fun() -> ok end),
     ok.
 
 start_app(Node) ->

@@ -116,7 +116,7 @@ handle_call({run, Hook, Args}, _From, State) ->
                           case H of
                               %% match on the Hook called and run those
                               {Hook, _Seq, Function} ->
-                                  Function(Args);
+                                  apply(Function,Args);
                               _ -> ok
                           end
                   end, State#state.hooks),

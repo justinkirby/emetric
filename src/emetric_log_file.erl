@@ -17,19 +17,34 @@
          start_link/0,
          deps/0,
          sup/0,
-         tick/1
+         tick/1,
+         config/1,
+         reopen/0
         ]).
 
 %% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
+-export([
+         init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
 -define(SERVER, ?MODULE).
 
--record(state, {file = 0,
-                header=false, %% whether we have recorded the header to the file
-                filter=emetric_filter_csv
-               }).
+-record(state, {
+          run = false,
+          active_file = undefined,
+          active_path = undefined,
+          out_dir = undefined,
+          base_name = undefined,
+          old_dir = undefined,
+          file = 0,
+          header=false, %% whether we have recorded the header to the file
+          filter=emetric_filter_csv
+         }).
 
 %%%===================================================================
 %%% API
@@ -38,6 +53,11 @@ deps() -> [emetric_hooks].
 sup() -> ?CHILD(?MODULE, worker).
 tick(Acc) ->
     gen_server:cast(?SERVER, {tick, Acc}).
+
+config(Env) -> ?CONSOLE("LOG config ~p~n",[Env]),gen_server:call(?SERVER, {config, Env}).
+
+reopen() -> gen_server:cast(?SERVER, reopen).
+    
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -64,18 +84,10 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(scatter_hooks, fun(A) -> emetric_log_file:tick(A) end, 1),
-    State = #state{},
-
-    Now = calendar:now_to_universal_time(erlang:now()),
-    Mod = State#state.filter,
-    Name = lists:flatten(io_lib:format("/tmp/emetric_~s_~s.~s",
-                                       [atom_to_list(node()),
-                                        emetric_util:datetime_stamp(Now),
-                                        Mod:type()])),
-
-    {ok, FD } = file:open(Name,[write]),
-    {ok, State#state{file = FD}}.
+    emetric_hooks:add(config_hook, fun emetric_log_file:config/1, 1),
+    emetric_hooks:add(reopen_log_hook, fun emetric_log_file:reopen/0, 1),
+    emetric_hooks:add(scatter_hooks, fun emetric_log_file:tick/1, 1),
+    {ok, start_state(env_to_state(emetric_appsrv:config(),#state{}))}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -91,6 +103,12 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({config, Env}, _From, State) ->
+    ?CONSOLE("config hook ~p~n",[Env]),
+    end_state(State),
+    NewState = env_to_state(Env,State),
+    {reply, ok, start_state(NewState)};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -105,10 +123,17 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({tick, Acc}, State) ->
+handle_cast({tick, Acc}, #state{run = true} = State) ->
     {Lines, NewState} = filter_tick(Acc, State),
-    io:format(NewState#state.file, Lines,[]),
+    io:format(NewState#state.active_file, Lines,[]),
     {noreply, NewState};
+handle_cast({tick, _Acc}, State) ->
+    {noreply, State};
+
+handle_cast(reopen, State) ->
+    end_state(State),
+    {noreply, start_state(State)};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -168,3 +193,48 @@ filter_tick(Acc, State) ->
     {lists:flatten(io_lib:format("~s~s~n",[Header, Row])),
      NewState}.
 
+env_to_state(Env, State) ->
+    case proplists:get_value(scatter_file, Env) of
+        undefined -> State;
+        Config ->
+            State#state{ out_dir = proplists:get_value(out_dir, Config),
+                         base_name = proplists:get_value(base_name, Config),
+                         old_dir = proplists:get_value(old_dir, Config)
+                         }
+    end.
+
+end_state(State) ->
+    case State#state.active_file of
+        undefined -> ok;
+        Fd ->
+            ok = file:close(Fd),
+
+            Now = emetric_util:datetime_stamp(calendar:now_to_universal_time(erlang:now())),
+            OldName = lists:flatten(io_lib:format("~s.~s",
+                                                  [filename:basename(State#state.active_path),
+                                                   Now])),
+
+            OldPath = filename:join([State#state.old_dir,OldName]),
+            ok = filelib:ensure_dir(OldPath),
+
+            file:rename(State#state.active_path, OldPath)
+    end,
+    State.
+
+start_state(State) ->
+    Filter = State#state.filter,
+    FileName = lists:flatten(io_lib:format("~s_~s.~s",[State#state.base_name,
+                                                       atom_to_list(node()),
+                                                       Filter:type()])),
+    ActivePath = filename:join([State#state.out_dir,FileName]),
+                              
+    ok = filelib:ensure_dir(ActivePath),
+
+    {ok, Fd} = file:open(ActivePath, [write]),
+
+    State#state{ run = true,
+                 active_file = Fd,
+                 active_path = ActivePath,
+                 header = false }.
+            
+             
