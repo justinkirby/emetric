@@ -54,7 +54,7 @@ sup() -> ?CHILD(?MODULE, worker).
 tick(Acc) ->
     gen_server:cast(?SERVER, {tick, Acc}).
 
-config(Env) -> ?CONSOLE("LOG config ~p~n",[Env]),gen_server:call(?SERVER, {config, Env}).
+config(Env) -> gen_server:call(?SERVER, {config, Env}).
 
 reopen() -> gen_server:cast(?SERVER, reopen).
     
@@ -104,7 +104,6 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({config, Env}, _From, State) ->
-    ?CONSOLE("config hook ~p~n",[Env]),
     end_state(State),
     NewState = env_to_state(Env,State),
     {reply, ok, start_state(NewState)};
@@ -206,20 +205,11 @@ env_to_state(Env, State) ->
 end_state(State) ->
     case State#state.active_file of
         undefined -> ok;
-        Fd ->
-            ok = file:close(Fd),
-
-            Now = emetric_util:datetime_stamp(calendar:now_to_universal_time(erlang:now())),
-            OldName = lists:flatten(io_lib:format("~s.~s",
-                                                  [filename:basename(State#state.active_path),
-                                                   Now])),
-
-            OldPath = filename:join([State#state.old_dir,OldName]),
-            ok = filelib:ensure_dir(OldPath),
-
-            file:rename(State#state.active_path, OldPath)
+        Fd -> ok = file:close(Fd)
     end,
-    State.
+    State#state{ run = false,
+                 active_file = undefined
+               }.
 
 start_state(State) ->
     Filter = State#state.filter,
@@ -229,6 +219,18 @@ start_state(State) ->
     ActivePath = filename:join([State#state.out_dir,FileName]),
                               
     ok = filelib:ensure_dir(ActivePath),
+
+    %% if the file exists, then rename to datestamp.old for logrotate
+    %% to pick up.
+    case filelib:is_regular(ActivePath) of
+        true ->
+            OldName = lists:flatten(io_lib:format("~s.~s.old",
+                                                  [State#state.active_path,
+                                                   emetric_util:now_stamp()])),
+            file:rename(State#state.active_path, OldName);
+        false ->
+            ok
+    end,
 
     {ok, Fd} = file:open(ActivePath, [write]),
 

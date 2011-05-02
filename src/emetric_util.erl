@@ -8,7 +8,8 @@
          rpc_ok_pid/6,
          rpc_ok/6,
          iso_8601_fmt/1,
-         datetime_stamp/1
+         datetime_stamp/1,
+         now_stamp/0
         ]).
 
 
@@ -59,3 +60,6 @@ iso_8601_fmt({{Y, M, D},{H, Mi, S}}) ->
 datetime_stamp({{Y, M, D},{H, Mi, S}}) ->
     lists:flatten(io_lib:format("~4.10.0B~2.10.0B~2.10.0B~2.10.0B~2.10.0B~2.10.0B",
                                 [Y, M, D, H, Mi, S])).
+
+now_stamp() ->
+    emetric_util:datetime_stamp(calendar:now_to_universal_time(erlang:now())).
