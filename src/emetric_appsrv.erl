@@ -15,6 +15,8 @@
 -export([
          start/1,
          start_link/0,
+         config/0,
+         config/1,
          stop/0,
          deps/0,
          sup/0,
@@ -34,6 +36,8 @@
 
 -define(SERVER, ?MODULE).
 
+-include("emetric.hrl").
+
 -record(state, {env, sup}).
 
 %%%===================================================================
@@ -45,6 +49,13 @@ run(Specs) ->
     gen_server:call(?SERVER,{start, Specs}).
 start(Env) ->
     gen_server:start({local,?SERVER}, ?MODULE, [Env],[]).
+
+config(Env) ->
+    gen_server:call(?SERVER,{config, Env}).
+
+config() ->
+    gen_server:call(?SERVER,config).
+
 stop() ->
     gen_server:call(?SERVER, stop).
 
@@ -102,6 +113,11 @@ init([Env]) ->
 handle_call({start, Specs}, _From, State) ->
     {ok, Sup } = emetric_sup:start_link(Specs),
     {reply, ok, State#state{sup = Sup}};
+handle_call({config, Env}, _From, State) ->
+    emetric_hooks:run(config_hook, [Env]),
+    {reply, {ok, Env}, State#state{env = Env}};
+handle_call(config, _From, State) ->
+    {reply, State#state.env, State};
 handle_call(stop, _From, State) ->
     {stop, normal, State};
 handle_call(ping, _From, State) ->

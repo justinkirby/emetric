@@ -125,7 +125,7 @@ handle_cast({tick}, State) ->
     emetric_ticker:scatter(Ticks),
     {noreply, State#state{tick_count = Cnt+1}};
 handle_cast({scatter, Ticks}, State) ->
-    emetric_hooks:run(scatter_hooks, Ticks),
+    emetric_hooks:run(scatter_hooks, [Ticks]),
     {noreply, State};
 
 handle_cast(_Msg, State) ->

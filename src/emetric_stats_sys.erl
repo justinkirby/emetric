@@ -83,7 +83,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(gather_hooks, fun(T, A) -> emetric_stats_sys:tick(T, A) end, 1),
+    emetric_hooks:add(gather_hooks, fun emetric_stats_sys:tick/2, 1),
     {ok, init_state(#state{})}.
 
 %%--------------------------------------------------------------------

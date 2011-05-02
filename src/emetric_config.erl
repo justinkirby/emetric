@@ -4,12 +4,36 @@
          set_global/2,
          get_global/2,
          get_global/1,
-         get_modules/0
+         get_modules/0,
+         config_file/0
         ]).
 
 -include("emetric.hrl").
 
+config_file() ->
+    case get_global(noconfig) of
+        1 -> io:format("noconfigs ~n",[]), ok;
+        _ ->
+            %% is there a file on the command line?
+            Configs = case get_global(config) of
+                          undefined -> ?CONFIG_PATHS;
+                          Cfg -> ?CONFIG_PATHS ++ [Cfg]
+                      end,
+            load_config(Configs)
+    end.
 
+load_config([]) -> ok;
+load_config([Config | Rest]) ->
+    case filelib:is_regular(Config) of
+        false -> load_config(Rest);
+        true ->
+            {ok, Terms} = file:consult(Config),
+            lists:foreach(fun({Key, Value}) ->
+                                  set_global(Key, Value)
+                          end, Terms),                                  
+            load_config(Rest)
+    end.
+    
 
 
 set_global(gather, Value) ->
@@ -63,4 +87,6 @@ build_module_list(_Prefix,[], Mods) ->
 build_module_list(Prefix,[Base|Rest], Mods) ->
     Mod = list_to_atom(Prefix++Base),
     build_module_list(Prefix, Rest, Mods++[Mod]).
+
+
 

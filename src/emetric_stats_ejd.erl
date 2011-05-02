@@ -158,7 +158,6 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({recv, _Jid, _From, _To, Packet}, State) ->
-%%    ?CONSOLE("RECV ~p ~p ~p ~p~n",[Jid, From, To, Packet]),
     Key = packet_to_key(Packet),
     New = State#state{stanza_in = incr_key(Key, State#state.stanza_in)},
     {noreply, New};
@@ -305,7 +304,11 @@ first_child_ns([{xmlelement, _, Ats, _Children}|_]) ->
 
 incr_key(Key, PropList) ->
     case proplists:get_value(Key, PropList) of
-        undefined -> [{Key, 1}|PropList];
+        undefined ->
+            %% have to tell the log to reopen, cause this is a new ns
+            %% and we would like it to show up in the log
+            emetric_hooks:run(reopen_log_hook,[]),
+            [{Key, 1}|PropList];
         Old ->
             P1 = proplists:delete(Key,PropList),
             [{Key,Old+1}|P1]

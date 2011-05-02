@@ -27,9 +27,12 @@ run() ->
 
 ping(Node, Cookie) ->
 
-    NameType = long_or_short(emetric_config:get_global(node)),
+    %% I need to figure out a better way to do this? yet another
+    %% command line param?
+    %% NameType = long_or_short(emetric_config:get_global(node)),
+
     %%escript doesn't start this
-    {ok,_Pid} = net_kernel:start(['emetric@localhost', NameType]),
+    {ok,_Pid} = net_kernel:start(['emetric@localhost', shortnames]),
 
     %% it is possible to have the names out of sync in epmd
     %% need to wait for the names to get worked out

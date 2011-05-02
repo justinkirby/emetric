@@ -72,7 +72,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    emetric_hooks:add(gather_hooks, fun(T, A) -> emetric_stats_mnesia:tick(T, A) end, 2),
+    emetric_hooks:add(gather_hooks, fun emetric_stats_mnesia:tick/2, 2),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
