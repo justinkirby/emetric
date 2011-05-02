@@ -158,7 +158,6 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({recv, _Jid, _From, _To, Packet}, State) ->
-%%    ?CONSOLE("RECV ~p ~p ~p ~p~n",[Jid, From, To, Packet]),
     Key = packet_to_key(Packet),
     New = State#state{stanza_in = incr_key(Key, State#state.stanza_in)},
     {noreply, New};
