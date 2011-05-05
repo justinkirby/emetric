@@ -19,13 +19,18 @@
 -include("emetric.hrl").
 
 -record(state, {
-          run = false,
-          out_dir = "/tmp",
+          %% configured state
+          out_dir = ?DEFAULT_OUTDIR,
           base_name = "stanza",
+          filter = ?DEFAULT_FILTER,
+
+          %% default run state
+          run = false,
+          header = false,
+
+          %% calculate stated
           active_file = undefined,
           active_path = "",
-          header = false,
-          filter = emetric_filter_csv,
           tick = []
          }).
 
@@ -131,13 +136,18 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-env_to_state(Env, State) ->
+env_to_state(Env, #state{ out_dir = OutDirDefault,
+                          base_name = BaseNameDefault,
+                          filter = FilterDefault
+                          } = State) ->
     case proplists:get_value(log_stanza, Env) of
         undefined -> State;
         Config ->
-            State#state{ out_dir = proplists:get_value(out_dir, Config),
-                         base_name = proplists:get_value(base_name, Config)
-                         }
+            State#state{
+              out_dir = proplists:get_value(out_dir, Config, OutDirDefault),
+              base_name = proplists:get_value(base_name, Config, BaseNameDefault),
+              filter = proplists:get_value(filter, Config, FilterDefault)
+             }
     end.
 
 

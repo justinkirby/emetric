@@ -29,7 +29,6 @@ ping(Node, Cookie) ->
 
     %% I need to figure out a better way to do this? yet another
     %% command line param?
-    %% NameType = long_or_short(emetric_config:get_global(node)),
 
     %%escript doesn't start this
     {ok,_Pid} = net_kernel:start(['emetric@localhost', shortnames]),
@@ -47,8 +46,3 @@ ping(Node, Cookie) ->
     end.
 
 
-long_or_short(Node) ->
-    case lists:member($@, Node) of
-        true -> longnames;
-        false -> shortnames
-    end.

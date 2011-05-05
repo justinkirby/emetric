@@ -60,7 +60,8 @@
         emetric_ticker,
         emetric_hooks,
         emetric_scatter,          
-        emetric_util
+        emetric_util,
+        emetric_filter_csv
       ]},
      {mods,[]}
 

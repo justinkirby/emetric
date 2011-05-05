@@ -20,7 +20,7 @@
 -include("emetric.hrl").
 
 -record(state, {
-          out_dir = "/tmp",
+          out_dir = ?DEFAULT_OUTDIR,
           base_name = "pid-",
           rate = 2,
           current_ratio = 2,
@@ -46,9 +46,9 @@ init([]) ->
 
     LogPid = proplists:get_value(log_pid, emetric_appsrv:config()),
     State = #state{
-      out_dir = proplists:get_value(out_dir,LogPid),
-      base_name = proplists:get_value(base_name,LogPid),
-      rate = proplists:get_value(rate,LogPid),
+      out_dir = proplists:get_value(out_dir,LogPid, ?DEFAULT_OUTDIR),
+      base_name = proplists:get_value(base_name,LogPid, "pid-"),
+      rate = proplists:get_value(rate,LogPid,2),
       keys = get_top_keys()
      },
 
@@ -81,8 +81,6 @@ handle_event({pid, Pids}, #state{ current_ratio = 1 } = State) ->
 handle_event(reopen_log_hook, State) ->
     Close = close_files(State),
     {ok, open_files(Close)};
-handle_event({Key, _}, State) ->
-    {ok, State};
 handle_event(_Event, State) ->
     {ok, State}.
 
@@ -194,14 +192,14 @@ close_files(#state{ files = Files } = State) ->
     
                     
     
-pids_write(#state{ files = Files,
+pids_write(#state{ files = _Files,
                    tick = undefined } = State) ->
     State;
 
 pids_write(#state{ files = Files,
                    tick = {pid, Tick} } = State) ->
     lists:foreach(fun({K, T}) ->
-                          {Path, File} = proplists:get_value(K,Files),
+                          {_Path, File} = proplists:get_value(K,Files),
                           pid_write(T,File)
                   end,proplists:get_value(top,Tick)),
     State#state{ tick = undefined}.

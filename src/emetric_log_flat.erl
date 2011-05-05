@@ -20,15 +20,15 @@
 -include("emetric.hrl").
 
 -record(state, {
+          out_dir = ?DEFAULT_OUTDIR,
+          base_name = "emetric-",
+          filter = ?DEFAULT_FILTER,
+
           run = false,
+          header=false, %% whether we have recorded the header to the file
+
           active_file = undefined,
           active_path = undefined,
-          out_dir = undefined,
-          base_name = undefined,
-          old_dir = undefined,
-          file = 0,
-          header=false, %% whether we have recorded the header to the file
-          filter=emetric_filter_csv,
           tick = []
          }).
 
@@ -167,15 +167,19 @@ filter_tick(#state{ tick = Tick } = State) ->
     {lists:flatten(io_lib:format("~s~s~n",[Header, Row])),
      NewState}.
 
-env_to_state(Env, State) ->
+env_to_state(Env, #state{ out_dir = OutDirDefault,
+                          base_name = BaseNameDefault,
+                          filter = FilterDefault
+                          } = State) ->
 
     case proplists:get_value(log_flat, Env) of
         undefined -> State;
         Config ->
-            State#state{ out_dir = proplists:get_value(out_dir, Config),
-                         base_name = proplists:get_value(base_name, Config),
-                         old_dir = proplists:get_value(old_dir, Config)
-                         }
+            State#state{
+              out_dir = proplists:get_value(out_dir, Config, OutDirDefault),
+              base_name = proplists:get_value(base_name, Config, BaseNameDefault),
+              filter = proplists:get_value(filter, Config, FilterDefault)
+             }
     end.
 
 end_state(State) ->

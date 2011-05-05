@@ -154,7 +154,10 @@ on_tick(Tick, Acc, State) ->
     %% get the list of named pids we want and join it with the info we
     %% want from process_info
     Top = get_top(State#state.top),
-    Data = {pid, [{top, Top}]},
+    Data = {pid,
+            [{tick,Tick},
+             {top, Top}
+            ]},
     [Data|Acc].
     
 
@@ -165,7 +168,7 @@ get_top(Top) ->
     get_top(TopKeys, Pids, Max, []).
     
     
-get_top([], _Pids, Max, Acc) -> Acc;
+get_top([], _Pids, _Max, Acc) -> Acc;
 get_top([Key | Rest], Pids, Max, Acc) ->
     Unsorted =  [{P, V} ||
                 P <- Pids,
@@ -173,7 +176,7 @@ get_top([Key | Rest], Pids, Max, Acc) ->
                     {Key, V} = erlang:process_info(P, Key),
                     true
                 end ],
-    Sorted = lists:reverse(lists:sort(fun({Pa, Va}, {Pb, Vb}) ->
+    Sorted = lists:reverse(lists:sort(fun({_Pa, Va}, {_Pb, Vb}) ->
                                               if
                                                   Va =< Vb -> true;
                                                   true -> false

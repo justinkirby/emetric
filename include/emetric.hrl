@@ -14,3 +14,7 @@
 
 
 -define(CONFIG_PATHS, ["/etc/emetric.cfg",os:getenv("HOME")++"/.emetric"]).
+
+
+-define(DEFAULT_OUTDIR, "/tmp/emetric").
+-define(DEFAULT_FILTER, emetric_filter_csv).
