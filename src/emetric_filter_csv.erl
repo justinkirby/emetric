@@ -58,9 +58,11 @@ row_stat({now, Val}, Acc) ->
     Time = calendar:now_to_universal_time(Val),
     NVal = lists:flatten(io_lib:format("~s",[emetric_util:iso_8601_fmt(Time)])),
     [NVal|Acc];
+row_stat({_Key, []}, Acc) -> [""|Acc];
 row_stat({_Key, Val}, Acc) ->
     NVal = lists:flatten(io_lib:format("~p",[Val])),
     [NVal|Acc].
+
 
 
 
