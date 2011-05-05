@@ -9,7 +9,10 @@
          rpc_ok/6,
          iso_8601_fmt/1,
          datetime_stamp/1,
-         now_stamp/0
+         now_stamp/0,
+         prop_walk/2,
+         archive_file/1,
+         msg/2
         ]).
 
 
@@ -63,3 +66,26 @@ datetime_stamp({{Y, M, D},{H, Mi, S}}) ->
 
 now_stamp() ->
     emetric_util:datetime_stamp(calendar:now_to_universal_time(erlang:now())).
+
+prop_walk([Key | Keys], Prop) ->
+    case proplists:get_value(Key,Prop) of
+        undefined -> undefined;
+        Sub -> prop_walk(Keys,Sub)
+    end;
+prop_walk([],Prop) -> Prop.
+    
+            
+    
+archive_file(Path) ->
+    case filelib:is_regular(Path) of
+        false -> ok;
+        true ->
+            ToName = lists:flatten(io_lib:format("~s.~s.old",
+                                                 [Path, now_stamp()])),
+            file:rename(Path, ToName)
+    end.
+
+msg(Str, Args) ->
+    io:format(list_to_pid("<0.0.0>"),Str,Args).
+            
+            

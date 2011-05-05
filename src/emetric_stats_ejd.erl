@@ -106,7 +106,7 @@ start_link() ->
 init([]) ->
 
     case code:is_loaded(ejabberd_hooks) of
-        false -> {ok, #state{}};
+        false -> ignore;  %% if there is no ejabberd, then there is nothing for us to do
         _ ->
 
             {ok, add_hooks()}
@@ -262,14 +262,15 @@ on_tick(Tick, Acc, State) ->
                           {Host, stats(Host)}
                   end, ejabberd_config:get_global_option(hosts)),
 
-    Data = [{ejd,
+    Data = {ejd,
              [{tick, Tick},
               {hosts, HostStats},
               {stanza_in, [S || S <- State#state.stanza_in]},
               {stanza_out, [S || S <- State#state.stanza_out]}
              ]
-            }],
-    Acc++Data.
+            },
+
+    [Data|Acc].
 
 constants(_State) ->
     [{now, now()}].

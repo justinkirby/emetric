@@ -1,41 +1,34 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2010,
+%%% @copyright (C) 2011, 
 %%% @doc
 %%%
 %%% @end
-%%% Created : 26 Nov 2010 by  <>
+%%% Created :  2 May 2011 by  <>
 %%%-------------------------------------------------------------------
--module(emetric_ticker).
+-module(emetric_stats_pid).
 
 -behaviour(gen_server).
 -behaviour(emetric_loadable).
 
 -include("emetric.hrl").
+
 %% API
 -export([
-         start_link/0,
-         start_link/1,
          deps/0,
          sup/0,
-         tick/0,
-         scatter/1
+         tick/2,
+         start_link/0,
+         get_top/4
         ]).
 
 %% gen_server callbacks
--export([
-         init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3
-        ]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2,
+         terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE).
--define(TICK, 2000).
+-define(SERVER, ?MODULE). 
 
--record(state, {tick = ?TICK, timer=0, tick_count=0}).
+-record(state, {top = []}).
 
 %%%===================================================================
 %%% API
@@ -43,18 +36,11 @@
 deps() -> [emetric_hooks].
 sup() -> ?CHILD(?MODULE, worker).
 
-tick() ->
-    gen_server:cast(?MODULE, {tick}).
 
-scatter(Ticks) ->
-    gen_server:cast(?MODULE, {scatter, Ticks}).
-%%    erlang:start_timer(tick_sz(?TICK, 0), self(),{tick}).
-
-%%got this from eper prf.erl:44
-%% tick_sz(Tick, Offset) ->
-%%     {_, Sec, Usec} = now(),
-%%     Skew = Tick div 4,
-%%     Tick + Skew-((round(Sec*1000+Usec/1000)-Offset+Skew) rem Tick).
+tick(Tick, Acc) ->
+    gen_server:call(?SERVER, {tick, Tick, Acc}).
+    
+    
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -65,9 +51,6 @@ scatter(Ticks) ->
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-start_link(Tick) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Tick], []).
-
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -85,11 +68,12 @@ start_link(Tick) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, Tref} = start_timer(?TICK),
-    {ok, #state{timer=Tref}};
-init([Tick]) ->
-    {ok, Tref} = start_timer(Tick),
-    {ok, #state{tick=Tick, timer=Tref}}.
+    Config = emetric_appsrv:config(),
+    Gpid = proplists:get_value(gather_pid, Config),
+
+    emetric_hooks:add(gather_hooks, fun emetric_stats_pid:tick/2, 2),
+
+    {ok, #state{top = proplists:get_value(top, Gpid)}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -105,6 +89,8 @@ init([Tick]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({tick, Tick, Acc} , _From, State) ->
+    {reply, on_tick(Tick, Acc, State), State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -119,21 +105,6 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({tick}, State) ->
-    Cnt = State#state.tick_count,
-    Ticks = emetric_hooks:run_fold(gather_hooks,[], Cnt),
-    emetric_ticker:scatter(Ticks),
-    {noreply, State#state{tick_count = Cnt+1}};
-handle_cast({scatter, Ticks}, State) ->
-    emetric_scatter:notify(tick_start),
-
-    lists:foreach(fun(T) ->
-                          emetric_scatter:notify(T)
-                  end, Ticks),
-
-    emetric_scatter:notify(tick_end),
-    {noreply, State};
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -178,5 +149,49 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-start_timer(Tick) ->
-    timer:apply_interval(Tick, emetric_ticker, tick,[]).
+
+on_tick(Tick, Acc, State) ->
+    %% get the list of named pids we want and join it with the info we
+    %% want from process_info
+    Top = get_top(State#state.top),
+    Data = {pid, [{top, Top}]},
+    [Data|Acc].
+    
+
+get_top(Top) ->
+    TopKeys = proplists:get_value(info_key, Top),
+    Max = proplists:get_value(max_count, Top),
+    Pids = erlang:processes(),
+    get_top(TopKeys, Pids, Max, []).
+    
+    
+get_top([], _Pids, Max, Acc) -> Acc;
+get_top([Key | Rest], Pids, Max, Acc) ->
+    Unsorted =  [{P, V} ||
+                P <- Pids,
+                begin
+                    {Key, V} = erlang:process_info(P, Key),
+                    true
+                end ],
+    Sorted = lists:reverse(lists:sort(fun({Pa, Va}, {Pb, Vb}) ->
+                                              if
+                                                  Va =< Vb -> true;
+                                                  true -> false
+                                              end end, Unsorted)),
+    {Trunc, _} = lists:split(Max, Sorted),
+
+    %%make the pid pretty, get the init func or reg name
+    Pretty = [{P, Name, V} ||
+                 {P,V} <- Trunc,
+                 begin
+                      [{registered_name, Reg},{initial_call, Initial}] =
+                         erlang:process_info(P,[registered_name,initial_call]),
+                     Name = case Reg of
+                                [] -> Initial;
+                                _ -> Reg
+                            end,
+                     true
+                 end ],
+
+    get_top(Rest,Pids,Max,[{Key, Pretty} | Acc]).
+            
