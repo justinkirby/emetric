@@ -114,8 +114,14 @@ handle_call({start, Specs}, _From, State) ->
     {ok, Sup } = emetric_sup:start_link(Specs),
     {reply, ok, State#state{sup = Sup}};
 handle_call({config, Env}, _From, State) ->
+
     emetric_hooks:run(config_hook, [Env]),
-    {reply, {ok, Env}, State#state{env = Env}};
+    
+    %% we spawn here, otherwise this is a deadlock call when the
+    %% events try to pull the config
+    spawn_link(fun() -> add_scatter_events(Env) end),
+
+    {reply, ok, State#state{env = Env}};
 handle_call(config, _From, State) ->
     {reply, State#state.env, State};
 handle_call(stop, _From, State) ->
@@ -180,3 +186,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+add_scatter_events(Config) ->
+    %% only decent way I could find to add event to event manager. ...
+    Scatters = proplists:get_value(scatter, Config),
+
+    lists:foreach(fun(S) ->
+                          emetric_scatter:add_handler(S)
+                  end,Scatters).

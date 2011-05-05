@@ -34,7 +34,7 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-deps() -> [].
+deps() -> [emetric_scatter].
 sup() -> ?CHILD(?MODULE, worker).
 
 
@@ -120,6 +120,10 @@ handle_call({run, Hook, Args}, _From, State) ->
                               _ -> ok
                           end
                   end, State#state.hooks),
+
+    %% this is a quick hack to pass all hook call to the scatter
+    %% event. Mainly intended to tell event handlers to reopen_log
+    emetric_scatter:notify(Hook),
     {reply, ok, State};
 handle_call({run_fold, Hook, Val, Args}, _From, State) ->
     Reply = run_fold(State#state.hooks, Hook, Val, Args),

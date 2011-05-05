@@ -15,7 +15,7 @@ command_help() ->
     {"reopen_log","","Force emetric to close the log file and reopen. For logrotate"}.
 
 
-deps() -> [].
+deps() -> [emetric_cmd_connect].
 
 run() ->
     Node = list_to_atom(emetric_config:get_global(node)),

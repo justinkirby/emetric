@@ -21,9 +21,11 @@
      emetric_cmd_info,
      emetric_cmd_ping,
      emetric_cmd_reopen_log,
-     emetric_stat_sys,
-     emetric_stat_ejd,
-     emetric_stat_mnesia,
+     emetric_scatter,
+     emetric_stats_sys,
+     emetric_stats_ejd,
+     emetric_stats_mnesia,
+     emetric_stats_pid,
      emetric_filter_csv,
      getopt
    ] },
@@ -52,12 +54,14 @@
            ]},
      {filter, [
           ]},
-     {base_mods, [emetric_appsrv,
-              emetric_sup,
-              emetric_ticker,
-              emetric_hooks,
-              emetric_util
-              ]},
+     {base_mods,
+      [ emetric_appsrv,
+        emetric_sup,
+        emetric_ticker,
+        emetric_hooks,
+        emetric_scatter,          
+        emetric_util
+      ]},
      {mods,[]}
 
     ]}

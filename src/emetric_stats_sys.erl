@@ -198,7 +198,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% total_ram            [byte]    /proc/meminfo
 on_tick(Tick, Acc, State) ->
     Data = [{tick, Tick}]++constants(State)++stats()++os_info(State#state.strategy),
-    Acc++[{sys, Data}].
+    [{sys, Data}|Acc].
 
 constants(#state{node=Node, total_ram=Total_ram, cores=Cores}) ->
     [{node, Node},{total_ram, Total_ram},{cores, Cores}].

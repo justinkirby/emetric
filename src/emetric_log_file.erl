@@ -222,16 +222,8 @@ start_state(State) ->
 
     %% if the file exists, then rename to datestamp.old for logrotate
     %% to pick up.
-    case filelib:is_regular(ActivePath) of
-        true ->
-            OldName = lists:flatten(io_lib:format("~s.~s.old",
-                                                  [State#state.active_path,
-                                                   emetric_util:now_stamp()])),
-            file:rename(State#state.active_path, OldName);
-        false ->
-            ok
-    end,
-
+    emetric_util:archive_file(ActivePath),
+    
     {ok, Fd} = file:open(ActivePath, [write]),
 
     State#state{ run = true,
