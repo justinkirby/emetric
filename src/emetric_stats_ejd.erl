@@ -262,15 +262,17 @@ on_tick(Tick, Acc, State) ->
                           {Host, stats(Host)}
                   end, ejabberd_config:get_global_option(hosts)),
 
-    Data = {ejd,
-             [{tick, Tick},
-              {hosts, HostStats},
-              {stanza_in, [S || S <- State#state.stanza_in]},
-              {stanza_out, [S || S <- State#state.stanza_out]}
-             ]
-            },
+    Ejd = {ejd,
+           [{tick, Tick},
+            {hosts, HostStats}
+           ]},
+    Stanzas = {stanzas,
+               [ {stanza_in, [S || S <- State#state.stanza_in]},
+                 {stanza_out, [S || S <- State#state.stanza_out]}
+               ]
+              },
 
-    [Data|Acc].
+    [Ejd,Stanzas|Acc].
 
 constants(_State) ->
     [{now, now()}].
@@ -308,7 +310,9 @@ incr_key(Key, PropList) ->
         undefined ->
             %% have to tell the log to reopen, cause this is a new ns
             %% and we would like it to show up in the log
-            emetric_hooks:run(reopen_log_hook,[]),
+
+            %% also please note I would like a better way to do this.
+            emetric_scatter:notify(stanza_new),
             [{Key, 1}|PropList];
         Old ->
             P1 = proplists:delete(Key,PropList),

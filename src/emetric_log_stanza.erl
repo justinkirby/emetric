@@ -4,12 +4,11 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created :  3 May 2011 by  <>
+%%% Created :  4 May 2011 by  <>
 %%%-------------------------------------------------------------------
--module(emetric_log_pid).
+-module(emetric_log_stanza).
 
 -behaviour(gen_event).
-
 
 %% gen_event callbacks
 -export([init/1, handle_event/2, handle_call/2, 
@@ -20,13 +19,14 @@
 -include("emetric.hrl").
 
 -record(state, {
+          run = false,
           out_dir = "/tmp",
-          base_name = "pid-",
-          rate = 2,
-          current_ratio = 2,
-          keys = [],
-          files = [],
-          tick = undefined
+          base_name = "stanza",
+          active_file = undefined,
+          active_path = "",
+          header = false,
+          filter = emetric_filter_csv,
+          tick = []
          }).
 
 %%%===================================================================
@@ -43,20 +43,8 @@
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-
-    LogPid = proplists:get_value(log_pid, emetric_appsrv:config()),
-    State = #state{
-      out_dir = proplists:get_value(out_dir,LogPid),
-      base_name = proplists:get_value(base_name,LogPid),
-      rate = proplists:get_value(rate,LogPid),
-      keys = get_top_keys()
-     },
-
-    State2 = open_files(State),
-
-
-    {ok, State2}.
-
+    State = env_to_state(emetric_appsrv:config(), #state{}),
+    {ok, start_state(State)}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -71,18 +59,15 @@ init([]) ->
 %%                          remove_handler
 %% @end
 %%--------------------------------------------------------------------
-handle_event(tick_start,  State) ->
-    {ok, State};
-handle_event(tick_end,  State) ->
-    NewState = pids_write(State),
-    {ok, ratio_dec_reset(NewState)};    
-handle_event({pid, Pids}, #state{ current_ratio = 1 } = State) ->
-    {ok, State#state{ tick = {pid, Pids} } };
+handle_event(tick_start, State) -> {ok, State};
+handle_event(tick_end, State) ->
+    {ok, write_tick(State)};
+handle_event({stanzas, Data}, #state{ tick = T } = State) ->
+    {ok, State#state{ tick = [{stanza, Data}| T] } };
+handle_event(stanza_new, State) ->
+    {ok, start_state(end_state(State))};
 handle_event(reopen_log_hook, State) ->
-    Close = close_files(State),
-    {ok, open_files(Close)};
-handle_event({Key, _}, State) ->
-    {ok, State};
+    {ok, start_state(end_state(State))};
 handle_event(_Event, State) ->
     {ok, State}.
 
@@ -129,8 +114,7 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, State) ->
-    close_files(State),
+terminate(_Reason, _State) ->
     ok.
 
 %%--------------------------------------------------------------------
@@ -147,75 +131,67 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-ratio_dec_reset(#state{ rate = Rate, current_ratio = 1 } = State) ->
-    State#state{ current_ratio = Rate };
-ratio_dec_reset(#state{ current_ratio = Cr } = State) when Cr > 1 ->
-    State#state{ current_ratio = Cr - 1};
-ratio_dec_reset(State) -> State.
-    
-
-
-get_top_keys() ->
-    case emetric_util:prop_walk([gather_pid,top,info_key],
-                                emetric_appsrv:config()) of
-        undefined -> [];
-        Keys  -> Keys
+env_to_state(Env, State) ->
+    case proplists:get_value(log_stanza, Env) of
+        undefined -> State;
+        Config ->
+            State#state{ out_dir = proplists:get_value(out_dir, Config),
+                         base_name = proplists:get_value(base_name, Config)
+                         }
     end.
 
 
-open_files(#state{ out_dir = Dir,
-                   base_name = Base,
-                   keys = Keys
-                   } = State) ->
-    Paths = [{K, Path} ||
-                K <- Keys,
-                begin
-                    Name = Base ++ atom_to_list(K),
-                    Path = filename:join([Dir,Name]),
-                    true
-                end],
-    lists:foreach(fun({_,P}) -> filelib:ensure_dir(P) end, Paths),
+start_state(#state{ filter = Filter,
+                    base_name = Base,
+                    out_dir = OutDir} = State) ->
 
-    Files = [{Key, {Path, Fd}} ||
-                {Key, Path} <- Paths,
-                begin
-                    emetric_util:archive_file(Path),
-                    {ok, Fd} = file:open(Path,[write]),
-                    true
-                end],
+    ActivPath = filename:join([OutDir, Base++"."++Filter:type()]),
 
-    State#state{ files = Files }.
+    ok = filelib:ensure_dir(ActivPath),
 
-close_files(#state{ files = Files } = State) ->
-    lists:foreach(fun({_Key, {_Path, Fd}}) -> file:close(Fd) end,Files),
-    State#state{ files = [] }.
+    emetric_util:archive_file(ActivPath),
+
+
+    {ok, Fd} = file:open(ActivPath, [write]),
+
+
+    State#state{ run = true,
+                 active_file = Fd,
+                 active_path = ActivPath,
+                 header = false }.
+
+end_state(#state{ active_file = Fd } = State) ->
+    case Fd of
+        undefined -> ok;
+        Fd -> ok = file:close(Fd)
+    end,
+
+    State#state{ run = false,
+                 active_file = undefined,
+                 header = false }.
+              
+            
     
+            
+write_tick(#state{ active_file = Fd } = State) ->
+    {Lines, NewState} = format_tick(State),
+    io:format(Fd, Lines, []),
+    NewState#state{ tick = [] }.
+
+format_tick(#state{ tick = Tick,
+                    filter = Filter
+                  } = State) ->
+
+    {Header, NewState} = case State#state.header of
+                             false ->
+                                 Head = Filter:header(Tick),
+                                 H = lists:flatten(io_lib:format("~s~n", [Head])),
+                                 {H, State#state{ header = true }};
+                             true->
+                                 {"", State}
+                         end,
     
-    
-                    
-    
-pids_write(#state{ files = Files,
-                   tick = undefined } = State) ->
-    State;
-
-pids_write(#state{ files = Files,
-                   tick = {pid, Tick} } = State) ->
-    lists:foreach(fun({K, T}) ->
-                          {Path, File} = proplists:get_value(K,Files),
-                          pid_write(T,File)
-                  end,proplists:get_value(top,Tick)),
-    State#state{ tick = undefined}.
-                   
-pid_write(T, File) ->
-    Line = "~p:~p ~p~n", %% <pid>:<value> registered_name\n
-
-    Section = lists:map(fun({Pid, Name, Value}) ->
-                                io_lib:format(Line, [Pid,Value,Name])
-                        end, T) ++ io_lib:format("~n~n",[]),
-
-    ToWrite = lists:flatten(Section),
-
-    io:format(File,ToWrite, []).
-
-    
+    Row = Filter:row(Tick),
+    {lists:flatten(io_lib:format("~s~s~n",[Header,Row])),
+     NewState}.
     
