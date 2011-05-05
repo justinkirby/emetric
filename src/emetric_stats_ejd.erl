@@ -310,7 +310,9 @@ incr_key(Key, PropList) ->
         undefined ->
             %% have to tell the log to reopen, cause this is a new ns
             %% and we would like it to show up in the log
-            emetric_hooks:run(reopen_log_hook,[]),
+
+            %% also please note I would like a better way to do this.
+            emetric_scatter:notify(stanza_new),
             [{Key, 1}|PropList];
         Old ->
             P1 = proplists:delete(Key,PropList),

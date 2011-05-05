@@ -46,9 +46,7 @@
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    ?DEBUG("FLAT e2s ~p~n",[env_to_state(emetric_appsrv:config(), #state{})]),
     State = start_state(env_to_state(emetric_appsrv:config(), #state{})),
-    ?DEBUG("FLAT ~p~n",[State]),
     {ok, State}.
 
 %%--------------------------------------------------------------------
@@ -191,7 +189,7 @@ end_state(State) ->
 
 start_state(State) ->
     Filter = State#state.filter,
-    FileName = lists:flatten(io_lib:format("~s_~s.~s",[State#state.base_name,
+    FileName = lists:flatten(io_lib:format("~s~s.~s",[State#state.base_name,
                                                        atom_to_list(node()),
                                                        Filter:type()])),
     ActivePath = filename:join([State#state.out_dir,FileName]),
