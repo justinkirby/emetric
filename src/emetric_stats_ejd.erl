@@ -262,15 +262,17 @@ on_tick(Tick, Acc, State) ->
                           {Host, stats(Host)}
                   end, ejabberd_config:get_global_option(hosts)),
 
-    Data = {ejd,
-             [{tick, Tick},
-              {hosts, HostStats},
-              {stanza_in, [S || S <- State#state.stanza_in]},
-              {stanza_out, [S || S <- State#state.stanza_out]}
-             ]
-            },
+    Ejd = {ejd,
+           [{tick, Tick},
+            {hosts, HostStats}
+           ]},
+    Stanzas = {stanzas,
+               [ {stanza_in, [S || S <- State#state.stanza_in]},
+                 {stanza_out, [S || S <- State#state.stanza_out]}
+               ]
+              },
 
-    [Data|Acc].
+    [Ejd,Stanzas|Acc].
 
 constants(_State) ->
     [{now, now()}].

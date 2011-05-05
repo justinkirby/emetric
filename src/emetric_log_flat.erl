@@ -4,9 +4,9 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created :  3 May 2011 by  <>
+%%% Created :  4 May 2011 by  <>
 %%%-------------------------------------------------------------------
--module(emetric_log_pid).
+-module(emetric_log_flat).
 
 -behaviour(gen_event).
 
@@ -20,13 +20,16 @@
 -include("emetric.hrl").
 
 -record(state, {
+          run = false,
+          active_file = undefined,
+          active_path = undefined,
           out_dir = undefined,
-          base_name = "pid",
-          rate = 2,
-          current_ratio = 2,
-          keys = [],
-          files = [],
-          tick = undefined
+          base_name = undefined,
+          old_dir = undefined,
+          file = 0,
+          header=false, %% whether we have recorded the header to the file
+          filter=emetric_filter_csv,
+          tick = []
          }).
 
 %%%===================================================================
@@ -43,20 +46,10 @@
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-
-    LogPid = proplists:get_value(log_pid, emetric_appsrv:config()),
-    State = #state{
-      out_dir = proplists:get_value(out_dir,LogPid),
-      base_name = proplists:get_value(base_name,LogPid),
-      rate = proplists:get_value(rate,LogPid),
-      keys = get_top_keys()
-     },
-
-    State2 = open_files(State),
-
-
-    {ok, State2}.
-
+    ?DEBUG("FLAT e2s ~p~n",[env_to_state(emetric_appsrv:config(), #state{})]),
+    State = start_state(env_to_state(emetric_appsrv:config(), #state{})),
+    ?DEBUG("FLAT ~p~n",[State]),
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -71,18 +64,24 @@ init([]) ->
 %%                          remove_handler
 %% @end
 %%--------------------------------------------------------------------
-handle_event(tick_start,  State) ->
-    {ok, State};
-handle_event(tick_end,  State) ->
-    NewState = pids_write(State),
-    {ok, ratio_dec_reset(NewState)};    
-handle_event({pid, Pids}, #state{ current_ratio = 1 } = State) ->
-    {ok, State#state{ tick = {pid, Pids} } };
+handle_event(tick_start, State) -> {ok, State};
+handle_event(tick_end, State) ->
+    {ok, write_tick(State)};
+
+handle_event({ejd, Data}, State) ->
+    {ok, accum_data({ejd,Data},State)};
+
+handle_event({sys, Data}, State) ->
+    {ok, accum_data({sys,Data},State)};
+
+handle_event({mnesia, Data}, State) ->
+    {ok, accum_data({mnesia, Data}, State)};
+
 handle_event(reopen_log_hook, State) ->
-    Close = close_files(State),
-    {ok, open_files(State)};
-handle_event({Key, _}, State) ->
-    {ok, State};
+    Close = end_state(State),
+    {ok, start_state(Close)};
+    
+    
 handle_event(_Event, State) ->
     {ok, State}.
 
@@ -129,8 +128,7 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, State) ->
-    close_files(State),
+terminate(_Reason, _State) ->
     ok.
 
 %%--------------------------------------------------------------------
@@ -147,75 +145,68 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-ratio_dec_reset(#state{ rate = Rate, current_ratio = 1 } = State) ->
-    State#state{ current_ratio = Rate };
-ratio_dec_reset(#state{ current_ratio = Cr } = State) when Cr > 1 ->
-    State#state{ current_ratio = Cr - 1};
-ratio_dec_reset(State) -> State.
-    
 
+accum_data({Key,Value}, #state{ tick = Tick } = State) ->
+    State#state{ tick = [{Key,Value}|Tick] }.
 
-get_top_keys() ->
-    case emetric_util:prop_walk([gather_pid,top,info_key],
-                                emetric_appsrv:config()) of
-        undefined -> [];
-        Keys  -> Keys
+write_tick(#state{ active_file = File } = State) ->
+    {Lines, NewState} = filter_tick(State),
+    io:format(File, Lines,[]),
+    NewState#state{ tick = [] }.
+
+filter_tick(#state{ tick = Tick } = State) ->
+    Mod = State#state.filter,
+    {Header, NewState} = case State#state.header of
+                            false ->
+                                Head = Mod:header(Tick),
+                                H = lists:flatten(io_lib:format("~s~n",[Head])),
+                                NS = State#state{header = true},
+                                {H, NS};
+                            true ->
+                                {"", State}
+                        end,
+    Row = Mod:row(Tick),
+    {lists:flatten(io_lib:format("~s~s~n",[Header, Row])),
+     NewState}.
+
+env_to_state(Env, State) ->
+
+    case proplists:get_value(log_flat, Env) of
+        undefined -> State;
+        Config ->
+            State#state{ out_dir = proplists:get_value(out_dir, Config),
+                         base_name = proplists:get_value(base_name, Config),
+                         old_dir = proplists:get_value(old_dir, Config)
+                         }
     end.
 
+end_state(State) ->
+    case State#state.active_file of
+        undefined -> ok;
+        Fd -> ok = file:close(Fd)
+    end,
+    State#state{ run = false,
+                 active_file = undefined
+               }.
 
-open_files(#state{ out_dir = Dir,
-                   base_name = Base,
-                   keys = Keys
-                   } = State) ->
-    Paths = [{K, Path} ||
-                K <- Keys,
-                begin
-                    Name = Base ++ atom_to_list(K),
-                    Path = filename:join([Dir,Name]),
-                    true
-                end],
-    lists:foreach(fun({_,P}) -> filelib:ensure_dir(P) end, Paths),
+start_state(State) ->
+    Filter = State#state.filter,
+    FileName = lists:flatten(io_lib:format("~s_~s.~s",[State#state.base_name,
+                                                       atom_to_list(node()),
+                                                       Filter:type()])),
+    ActivePath = filename:join([State#state.out_dir,FileName]),
+                              
+    ok = filelib:ensure_dir(ActivePath),
 
-    Files = [{Key, {Path, Fd}} ||
-                {Key, Path} <- Paths,
-                begin
-                    emetric_util:archive_file(Path),
-                    {ok, Fd} = file:open(Path,[write]),
-                    true
-                end],
-
-    State#state{ files = Files }.
-
-close_files(#state{ files = Files } = State) ->
-    lists:foreach(fun({_Key, {_Path, Fd}}) -> file:close(Fd) end,Files),
-    State#state{ files = [] }.
+    %% if the file exists, then rename to datestamp.old for logrotate
+    %% to pick up.
+    emetric_util:archive_file(ActivePath),
     
-    
-    
-                    
-    
-pids_write(#state{ files = Files,
-                   tick = undefined } = State) ->
-    State;
+    {ok, Fd} = file:open(ActivePath, [write]),
 
-pids_write(#state{ files = Files,
-                   tick = {pid, Tick} } = State) ->
-    lists:foreach(fun({K, T}) ->
-                          {Path, File} = proplists:get_value(K,Files),
-                          pid_write(T,File)
-                  end,proplists:get_value(top,Tick)),
-    State#state{ tick = undefined}.
-                   
-pid_write(T, File) ->
-    Line = "~p:~p ~p~n", %% <pid>:<value> registered_name\n
-
-    Section = lists:map(fun({Pid, Name, Value}) ->
-                                io_lib:format(Line, [Pid,Value,Name])
-                        end, T) ++ io_lib:format("~n~n",[]),
-
-    ToWrite = lists:flatten(Section),
-
-    io:format(File,ToWrite, []).
-
-    
-    
+    State#state{ run = true,
+                 active_file = Fd,
+                 active_path = ActivePath,
+                 header = false }.
+            
+             
