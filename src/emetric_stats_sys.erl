@@ -197,8 +197,10 @@ code_change(_OldVsn, State, _Extra) ->
 %% beam_majflt          [count/s] /proc/self/stat
 %% total_ram            [byte]    /proc/meminfo
 on_tick(Tick, Acc, State) ->
-    Data = [{tick, Tick}]++constants(State)++stats()++os_info(State#state.strategy),
-    [{sys, Data}|Acc].
+    Erls = {erls, [{tick, Tick}|stats()]},
+    Erlm = {erlm, [{tick, Tick}|erlang:memory()]},
+    Os = {os, [{tick, Tick}|constants(State)++os_info(State#state.strategy)]},
+    [Erls,Erlm,Os|Acc].
 
 constants(#state{node=Node, total_ram=Total_ram, cores=Cores}) ->
     [{node, Node},{total_ram, Total_ram},{cores, Cores}].

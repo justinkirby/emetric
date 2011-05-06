@@ -67,6 +67,8 @@ init([]) ->
 handle_event(tick_start, State) -> {ok, State};
 handle_event(tick_end, State) ->
     {ok, write_tick(State)};
+handle_event({stanzas, [{stanza_in,[]},{stanza_out,[]}]}, State) ->
+    {ok, State};
 handle_event({stanzas, Data}, #state{ tick = T } = State) ->
     {ok, State#state{ tick = [{stanza, Data}| T] } };
 handle_event(stanza_new, State) ->
@@ -180,8 +182,9 @@ end_state(#state{ active_file = Fd } = State) ->
                  active_file = undefined,
                  header = false }.
               
-            
-    
+%% if we have nothing, don't log it.
+write_tick(#state{ tick = [] } = State) ->
+    State;
             
 write_tick(#state{ active_file = Fd } = State) ->
     {Lines, NewState} = format_tick(State),

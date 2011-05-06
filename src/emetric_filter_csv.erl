@@ -39,9 +39,9 @@ header_stat({Name, _Val}, Pre, Acc) ->
     [El|Acc].
 
 new_pre(Pre, Name) when is_list(Name)->
-    lists:flatten(io_lib:format("~s_~s",[Pre, Name]));
+    lists:flatten(io_lib:format("~s|~s",[Pre, Name]));
 new_pre(Pre, Name) ->
-    lists:flatten(io_lib:format("~s_~p",[Pre, Name])).
+    lists:flatten(io_lib:format("~s|~p",[Pre, Name])).
 
 
 
