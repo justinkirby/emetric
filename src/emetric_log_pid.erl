@@ -21,7 +21,7 @@
 
 -record(state, {
           out_dir = ?DEFAULT_OUTDIR,
-          base_name = "pid-",
+          base_name = "pid.",
           rate = 2,
           current_ratio = 2,
           keys = [],
@@ -165,10 +165,13 @@ open_files(#state{ out_dir = Dir,
                    base_name = Base,
                    keys = Keys
                    } = State) ->
+
+    NodeName = atom_to_list(node()),
+
     Paths = [{K, Path} ||
                 K <- Keys,
                 begin
-                    Name = Base ++ atom_to_list(K),
+                    Name = Base ++ atom_to_list(K) ++ "." ++ NodeName,
                     Path = filename:join([Dir,Name]),
                     true
                 end],
