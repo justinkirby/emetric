@@ -173,8 +173,11 @@ get_top([Key | Rest], Pids, Max, Acc) ->
     Unsorted =  [{P, V} ||
                 P <- Pids,
                 begin
-                    {Key, V} = erlang:process_info(P, Key),
-                    true
+                    {K, V} = case erlang:process_info(P, Key) of
+                                   {Kk, Vv} -> {Kk, Vv};
+                                   undefined -> {undefined, undefined}
+                               end,
+                    {K,V} =/= {undefined, undefined}
                 end ],
     Sorted = lists:reverse(lists:sort(fun({_Pa, Va}, {_Pb, Vb}) ->
                                               if
@@ -187,13 +190,18 @@ get_top([Key | Rest], Pids, Max, Acc) ->
     Pretty = [{P, Name, V} ||
                  {P,V} <- Trunc,
                  begin
-                      [{registered_name, Reg},{initial_call, Initial}] =
-                         erlang:process_info(P,[registered_name,initial_call]),
+                     {Reg, Initial} = case erlang:process_info(P,[registered_name,initial_call]) of
+                                          [{registered_name, R},{initial_call, I}] -> {R, I};
+                                          undefined -> {undefined,undefined}
+                                      end,
+                     
+
                      Name = case Reg of
+                                undefined -> undefined;
                                 [] -> Initial;
                                 _ -> Reg
                             end,
-                     true
+                     Name =/= undefined
                  end ],
 
     get_top(Rest,Pids,Max,[{Key, Pretty} | Acc]).
