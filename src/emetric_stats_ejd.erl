@@ -38,6 +38,7 @@
 
 -record(state, {
           in_ejd = false,
+          users_registered = [],
           stanza_in=[],
           stanza_out=[]
          }).
@@ -108,8 +109,16 @@ init([]) ->
     case code:is_loaded(ejabberd_hooks) of
         false -> ignore;  %% if there is no ejabberd, then there is nothing for us to do
         _ ->
+            State = add_hooks(),
+            RegUsers = [RegUsersHost ||
+                           Host <- ejabberd_config:get_global_option(hosts),
+                           begin
+                               Users = ejabberd_auth:get_vh_registered_users_number(Host),
+                               RegUsersHost = {Host, Users},
+                               true
+                           end],
 
-            {ok, add_hooks()}
+            {ok, State#state{users_registered=RegUsers}}
 
     end.
 
@@ -232,7 +241,7 @@ add_hooks() ->
                   end,ejabberd_config:get_global_option(hosts)),
     emetric_hooks:add(gather_hooks,
                       fun emetric_stats_ejd:tick/2,
-                      2),                          
+                      2),
     #state{in_ejd = true}.
 
 del_hooks() ->
@@ -240,26 +249,27 @@ del_hooks() ->
                          fun emetric_stats_ejd:tick/2,
                          2),
     lists:foreach(fun(Host) ->
-            ejabberd_hooks:delete(user_receive_packet,
-                                  Host,
-                                  ?MODULE,
-                                  on_receive_packet,
-                                  100),
-            ejabberd_hooks:delete(user_send_packet,
-                                  Host,
-                                  ?MODULE,
-                                  on_send_packet,
-                                  100)
+                          ejabberd_hooks:delete(user_receive_packet,
+                                                Host,
+                                                ?MODULE,
+                                                on_receive_packet,
+                                                100),
+                          ejabberd_hooks:delete(user_send_packet,
+                                                Host,
+                                                ?MODULE,
+                                                on_send_packet,
+                                                100)
                   end, ejabberd_config:get_global_option(hosts)),
     ok.
-                
+
 
 on_tick(Tick, Acc, State) ->
     %% loop over all the ejabberd hosts and provide:
     %% [{"example.com",[{stat, val},...]},...]
     HostStats = [{"global", constants(State) ++ global_stats()}] ++
         lists:map(fun(Host) ->
-                          {Host, stats(Host)}
+                          Users = proplists:get_value(Host,State#state.users_registered,0),
+                          {Host, stats(Host,Users)}
                   end, ejabberd_config:get_global_option(hosts)),
 
     Ejd = {ejd,
@@ -281,8 +291,7 @@ global_stats() ->
     Sessions = length(ejabberd_sm:dirty_get_my_sessions_list()),
     [{sessions, Sessions}].
 
-stats(Host) ->
-    Users = ejabberd_auth:get_vh_registered_users_number(Host),
+stats(Host, Users) ->
     Online = length(ejabberd_sm:get_vh_session_list(Host)),
     [{users_total, Users},
      {users_online, Online}].
@@ -297,7 +306,7 @@ packet_to_key({xmlelement, "iq", Ats, Children}) ->
                false -> "none"
            end,
     Ns = first_child_ns(Children),
-    lists:flatten(io_lib:format("iq_~s_~s",[Type, Ns]));                     
+    lists:flatten(io_lib:format("iq_~s_~s",[Type, Ns]));
 packet_to_key(_Packet) -> undefined.
 
 
