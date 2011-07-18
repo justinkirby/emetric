@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author  <>
-%%% @copyright (C) 2011, 
+%%% @copyright (C) 2011,
 %%% @doc
 %%%
 %%% @end
@@ -12,7 +12,7 @@
 
 
 %% gen_event callbacks
--export([init/1, handle_event/2, handle_call/2, 
+-export([init/1, handle_event/2, handle_call/2,
          handle_info/2, terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
@@ -71,15 +71,19 @@ handle_event({ejd, Data}, State) ->
 
 handle_event({sys, Data}, State) ->
     {ok, accum_data({sys,Data},State)};
-
+handle_event({erls, Data}, State) ->
+    {ok, accum_data({erls, Data}, State)};
+handle_event({erlm, Data}, State) ->
+    {ok, accum_data({erlm, Data}, State)};
+handle_event({os, Data}, State) ->
+    {ok, accum_data({os, Data}, State)};
 handle_event({mnesia, Data}, State) ->
     {ok, accum_data({mnesia, Data}, State)};
 
 handle_event(reopen_log_hook, State) ->
     Close = end_state(State),
     {ok, start_state(Close)};
-    
-    
+
 handle_event(_Event, State) ->
     {ok, State}.
 
@@ -197,18 +201,18 @@ start_state(State) ->
                                                        atom_to_list(node()),
                                                        Filter:type()])),
     ActivePath = filename:join([State#state.out_dir,FileName]),
-                              
+
     ok = filelib:ensure_dir(ActivePath),
 
     %% if the file exists, then rename to datestamp.old for logrotate
     %% to pick up.
     emetric_util:archive_file(ActivePath),
-    
+
     {ok, Fd} = file:open(ActivePath, [write]),
 
     State#state{ run = true,
                  active_file = Fd,
                  active_path = ActivePath,
                  header = false }.
-            
-             
+
+

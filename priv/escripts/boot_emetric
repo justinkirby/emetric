@@ -19,7 +19,7 @@ main(_Args) ->
             end;
         {error, ZipError} ->
             io:format("Failed to construct emetric script archive: ~p\n",[ZipError]),
-            halt(1)            
+            halt(1)
     end,
 
     case os:type() of
