@@ -1,0 +1,68 @@
+* Intro
+
+* Install
+
+* Commands
+
+** connect
+   Depend: none
+
+   This is required for virtually all of the command to work. 
+
+   Starts up all necessary services, makes sure everything is in
+   sync. The --node and --cookie are required arguments for this to
+   work.
+
+   If emetric can not do a net_adm:ping(Node), then it will exit with
+   1 and output 'pang' on the console
+
+** inject
+   Depend: connect
+
+   Since emetric dynamically injects modules into the remote node, you
+   need to tell which modules  are needed, outside of the core ones.
+
+   Modules have three categories:
+   - gather
+   - scatter
+   - mods
+     
+*** Gather
+    These modules gather the information and package it into a tagged
+    proplist.
+
+    {name_of_data, [{list_of, info}..]}.
+
+    Currently the options are:
+    - sys: gather system information similar to vstat
+    - mnesia: all information about mnesia in the node
+    - ejd: ejabberd statistics
+
+*** Scatter
+
+    These modules take a list of tagged tuples and output them into
+    the destination. The destinatin can be anything; db,http,file.
+
+    Currently the only option is to output to a file:
+    - file: output to a file with the name of
+      /tmp/emetric_(node)-YYYYMMDDHHmm.csv
+
+*** Mods
+
+    Any module that needs to be loaded that is not about gathering
+    statistics or outputting the data.
+
+    Currently the only option is a csv filter for the file.
+   
+
+** start
+** info
+** stop
+** ping
+   Ping the remote node to see if emetric is running. Result will be
+   pong or pang.
+
+   exit values, e.g. $?
+   - 1: tried to ping the node and failed
+   - 2: the code is not loaded
+   - 3: the gen_server is not running
