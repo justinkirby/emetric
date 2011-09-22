@@ -305,11 +305,16 @@ packet_to_key({xmlelement, "iq", Ats, Children}) ->
                {value, Value} -> Value;
                false -> "none"
            end,
-    Ns = first_child_ns(Children),
-    lists:flatten(io_lib:format("iq_~s_~s",[Type, Ns]));
+    case first_child_ns(Children) of
+        undefined ->
+            lists:flatten(io_lib:format("iq_~s",[Type]));
+        Ns ->
+            lists:flatten(io_lib:format("iq_~s_~s",[Type, Ns]))
+    end;
 packet_to_key(_Packet) -> undefined.
 
 
+first_child_ns([]) -> undefined;
 first_child_ns([{xmlelement, _, Ats, _Children}|_]) ->
     xml:get_attr_s("xmlns", Ats).
 
