@@ -2,7 +2,7 @@
 {application, emetric,
  [
   {description, "Erlang Metrics Logger"},
-  {vsn, "1"},
+  {vsn, git},
   {applications,
    [ kernel,
      stdlib,
@@ -59,7 +59,7 @@
         emetric_sup,
         emetric_ticker,
         emetric_hooks,
-        emetric_scatter,          
+        emetric_scatter,
         emetric_util,
         emetric_filter_csv
       ]},
